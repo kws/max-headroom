@@ -5,12 +5,25 @@ class MaxHeadroomBackground extends HTMLElement {
     this.canvas = null;
     this.gl = null;
     this.program = null;
+    this.fisheyeProgram = null;
+    this.framebuffer = null;
+    this.colorTexture = null;
+    this.depthBuffer = null;
     this.animationId = null;
     this.startTime = Date.now();
     
     this.uniforms = {
       u_modelViewMatrix: null,
-      u_projectionMatrix: null
+      u_projectionMatrix: null,
+      u_lineWidth: null,
+      u_lineSpacing: null
+    };
+    
+    this.fisheyeUniforms = {
+      u_texture: null,
+      u_resolution: null,
+      u_time: null,
+      u_strength: null
     };
     
     this.attributeLocations = {
@@ -19,11 +32,18 @@ class MaxHeadroomBackground extends HTMLElement {
       a_texCoord: null
     };
     
+    this.fisheyeAttributeLocations = {
+      a_position: null,
+      a_texCoord: null
+    };
+    
     this.buffers = {
       position: null,
       color: null,
       texCoord: null,
-      indices: null
+      indices: null,
+      quadPosition: null,
+      quadTexCoord: null
     };
     
     this.currentRotation = { x: 0, y: 0, z: 0 };
@@ -31,12 +51,24 @@ class MaxHeadroomBackground extends HTMLElement {
   }
   
   static get observedAttributes() {
-    return ['speed'];
+    return ['speed', 'fisheye-strength', 'camera-distance', 'line-width', 'line-spacing'];
   }
   
   attributeChangedCallback(name, oldValue, newValue) {
     if (name === 'speed' && oldValue !== newValue) {
       this.updateRotationSpeeds();
+    }
+    if (name === 'fisheye-strength' && oldValue !== newValue) {
+      // Fisheye strength will be read in the render loop
+    }
+    if (name === 'camera-distance' && oldValue !== newValue) {
+      // Camera distance will be read in the render loop
+    }
+    if (name === 'line-width' && oldValue !== newValue) {
+      // Line width will be read in the render loop
+    }
+    if (name === 'line-spacing' && oldValue !== newValue) {
+      // Line spacing will be read in the render loop
     }
   }
   
@@ -48,6 +80,22 @@ class MaxHeadroomBackground extends HTMLElement {
     this.rotationX = (Math.random() * 0.01 + 0.003) * speed;
     this.rotationY = (Math.random() * 0.01 + 0.003) * speed;
     this.rotationZ = (Math.random() * 0.01 + 0.003) * speed;
+  }
+  
+  getFisheyeStrength() {
+    return parseFloat(this.getAttribute('fisheye-strength') || '0.1');
+  }
+
+  getCameraDistance() {
+    return parseFloat(this.getAttribute('camera-distance') || '0.5');
+  }
+  
+  getLineWidth() {
+    return parseFloat(this.getAttribute('line-width') || '0.2');
+  }
+
+  getLineSpacing() {
+    return parseFloat(this.getAttribute('line-spacing') || '80.0');
   }
   
   connectedCallback() {
@@ -122,6 +170,9 @@ class MaxHeadroomBackground extends HTMLElement {
     // Fragment shader with line patterns
     const fragmentShaderSource = `
       precision mediump float;
+      uniform float u_lineWidth;
+      uniform float u_lineSpacing;
+      
       varying vec4 v_color;
       varying vec2 v_texCoord;
       
@@ -130,26 +181,27 @@ class MaxHeadroomBackground extends HTMLElement {
         
         // Create line patterns based on face color
         float pattern = 0.0;
+        float threshold = 1.0 - u_lineWidth;
         
-        // Different line patterns for different faces - thin lines with more space
+        // Different line patterns for different faces
         if (v_color.r > 0.9 && v_color.g < 0.1 && v_color.b < 0.1) {
-          // Red face - thin horizontal lines
-          pattern = step(0.85, mod(uv.y * 20.0, 1.0));
+          // Red face - horizontal lines
+          pattern = step(threshold, mod(uv.y * u_lineSpacing, 1.0));
         } else if (v_color.r < 0.1 && v_color.g > 0.9 && v_color.b < 0.1) {
-          // Green face - thin vertical lines  
-          pattern = step(0.85, mod(uv.x * 20.0, 1.0));
+          // Green face - vertical lines  
+          pattern = step(threshold, mod(uv.x * u_lineSpacing, 1.0));
         } else if (v_color.r < 0.1 && v_color.g < 0.1 && v_color.b > 0.9) {
-          // Blue face - thin horizontal lines
-          pattern = step(0.85, mod(uv.y * 18.0, 1.0));
+          // Blue face - horizontal lines with slightly different spacing
+          pattern = step(threshold, mod(uv.y * (u_lineSpacing * 0.9), 1.0));
         } else if (v_color.r > 0.9 && v_color.g > 0.9 && v_color.b < 0.1) {
-          // Yellow face - thin vertical lines
-          pattern = step(0.85, mod(uv.x * 18.0, 1.0));
+          // Yellow face - vertical lines with slightly different spacing
+          pattern = step(threshold, mod(uv.x * (u_lineSpacing * 0.9), 1.0));
         } else if (v_color.r > 0.9 && v_color.g < 0.1 && v_color.b > 0.9) {
-          // Magenta face - thin diagonal lines
-          pattern = step(0.85, mod((uv.x + uv.y) * 15.0, 1.0));
+          // Magenta face - diagonal lines
+          pattern = step(threshold, mod((uv.x + uv.y) * (u_lineSpacing * 0.75), 1.0));
         } else {
-          // Cyan face - thin horizontal lines
-          pattern = step(0.85, mod(uv.y * 22.0, 1.0));
+          // Cyan face - horizontal lines with slightly different spacing
+          pattern = step(threshold, mod(uv.y * (u_lineSpacing * 1.1), 1.0));
         }
         
         // Add some glow effect
@@ -158,9 +210,70 @@ class MaxHeadroomBackground extends HTMLElement {
         gl_FragColor = vec4(v_color.rgb * glow, 1.0);
       }
     `;
+
+    // Fisheye vertex shader for full-screen quad
+    const fisheyeVertexShaderSource = `
+      attribute vec4 a_position;
+      attribute vec2 a_texCoord;
+      
+      varying vec2 v_texCoord;
+      
+      void main() {
+        gl_Position = a_position;
+        v_texCoord = a_texCoord;
+      }
+    `;
+
+    // Fisheye fragment shader
+    const fisheyeFragmentShaderSource = `
+      precision mediump float;
+      uniform sampler2D u_texture;
+      uniform vec2 u_resolution;
+      uniform float u_time;
+      uniform float u_strength;
+      
+      varying vec2 v_texCoord;
+      
+      void main() {
+        vec2 uv = v_texCoord;
+        vec2 center = vec2(0.5, 0.5);
+        
+        // Distance from center
+        vec2 delta = uv - center;
+        float distance = length(delta);
+        
+        // Fisheye distortion with animated strength
+        float animatedStrength = u_strength * (1.0 + 0.2 * sin(u_time * 2.0));
+        float distortion = 1.0 + animatedStrength * distance * distance;
+        
+        // Apply distortion
+        vec2 distortedUV = center + delta / distortion;
+        
+        // Add chromatic aberration for extra effect
+        float aberration = animatedStrength * 0.01;
+        vec2 redOffset = distortedUV + delta * aberration;
+        vec2 greenOffset = distortedUV;
+        vec2 blueOffset = distortedUV - delta * aberration;
+        
+        // Sample color channels with slight offset
+        float r = texture2D(u_texture, redOffset).r;
+        float g = texture2D(u_texture, greenOffset).g;
+        float b = texture2D(u_texture, blueOffset).b;
+        
+        // Vignette effect
+        float vignette = 1.0 - distance * 0.7;
+        vignette = smoothstep(0.0, 1.0, vignette);
+        
+        gl_FragColor = vec4(r, g, b, 1.0) * vignette;
+      }
+    `;
     
     this.program = this.createShaderProgram(vertexShaderSource, fragmentShaderSource);
+    this.fisheyeProgram = this.createShaderProgram(fisheyeVertexShaderSource, fisheyeFragmentShaderSource);
+    
+    this.setupFramebuffer();
     this.setupCubeGeometry();
+    this.setupQuadGeometry();
     this.setupUniforms();
   }
   
@@ -193,6 +306,40 @@ class MaxHeadroomBackground extends HTMLElement {
     }
     
     return shader;
+  }
+  
+  setupFramebuffer() {
+    // Create framebuffer
+    this.framebuffer = this.gl.createFramebuffer();
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.framebuffer);
+    
+    // Create color texture
+    this.colorTexture = this.gl.createTexture();
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.colorTexture);
+    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.canvas.width, this.canvas.height, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null);
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
+    
+    // Attach color texture to framebuffer
+    this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, this.gl.TEXTURE_2D, this.colorTexture, 0);
+    
+    // Create depth buffer
+    this.depthBuffer = this.gl.createRenderbuffer();
+    this.gl.bindRenderbuffer(this.gl.RENDERBUFFER, this.depthBuffer);
+    this.gl.renderbufferStorage(this.gl.RENDERBUFFER, this.gl.DEPTH_COMPONENT16, this.canvas.width, this.canvas.height);
+    
+    // Attach depth buffer to framebuffer
+    this.gl.framebufferRenderbuffer(this.gl.FRAMEBUFFER, this.gl.DEPTH_ATTACHMENT, this.gl.RENDERBUFFER, this.depthBuffer);
+    
+    // Check framebuffer status
+    if (this.gl.checkFramebufferStatus(this.gl.FRAMEBUFFER) !== this.gl.FRAMEBUFFER_COMPLETE) {
+      console.error('Framebuffer not complete');
+    }
+    
+    // Unbind framebuffer
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
   }
   
   setupCubeGeometry() {
@@ -322,13 +469,52 @@ class MaxHeadroomBackground extends HTMLElement {
     this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), this.gl.STATIC_DRAW);
   }
   
+  setupQuadGeometry() {
+    // Full-screen quad vertices (NDC coordinates)
+    const quadPositions = [
+      -1.0, -1.0,
+       1.0, -1.0,
+       1.0,  1.0,
+      -1.0,  1.0,
+    ];
+    
+    // Texture coordinates for the quad
+    const quadTexCoords = [
+      0.0, 0.0,
+      1.0, 0.0,
+      1.0, 1.0,
+      0.0, 1.0,
+    ];
+    
+    // Create and bind quad position buffer
+    this.buffers.quadPosition = this.gl.createBuffer();
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.quadPosition);
+    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(quadPositions), this.gl.STATIC_DRAW);
+    
+    // Create and bind quad texture coordinate buffer
+    this.buffers.quadTexCoord = this.gl.createBuffer();
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.quadTexCoord);
+    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(quadTexCoords), this.gl.STATIC_DRAW);
+  }
+  
   setupUniforms() {
     this.uniforms.u_modelViewMatrix = this.gl.getUniformLocation(this.program, 'u_modelViewMatrix');
     this.uniforms.u_projectionMatrix = this.gl.getUniformLocation(this.program, 'u_projectionMatrix');
+    this.uniforms.u_lineWidth = this.gl.getUniformLocation(this.program, 'u_lineWidth');
+    this.uniforms.u_lineSpacing = this.gl.getUniformLocation(this.program, 'u_lineSpacing');
     
     this.attributeLocations.a_position = this.gl.getAttribLocation(this.program, 'a_position');
     this.attributeLocations.a_color = this.gl.getAttribLocation(this.program, 'a_color');
     this.attributeLocations.a_texCoord = this.gl.getAttribLocation(this.program, 'a_texCoord');
+
+    // Setup fisheye shader uniforms and attributes
+    this.fisheyeUniforms.u_texture = this.gl.getUniformLocation(this.fisheyeProgram, 'u_texture');
+    this.fisheyeUniforms.u_resolution = this.gl.getUniformLocation(this.fisheyeProgram, 'u_resolution');
+    this.fisheyeUniforms.u_time = this.gl.getUniformLocation(this.fisheyeProgram, 'u_time');
+    this.fisheyeUniforms.u_strength = this.gl.getUniformLocation(this.fisheyeProgram, 'u_strength');
+    
+    this.fisheyeAttributeLocations.a_position = this.gl.getAttribLocation(this.fisheyeProgram, 'a_position');
+    this.fisheyeAttributeLocations.a_texCoord = this.gl.getAttribLocation(this.fisheyeProgram, 'a_texCoord');
   }
   
   setupEventListeners() {
@@ -340,6 +526,17 @@ class MaxHeadroomBackground extends HTMLElement {
     this.canvas.width = rect.width;
     this.canvas.height = rect.height;
     this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+
+    // Resize framebuffer textures
+    if (this.colorTexture && this.depthBuffer) {
+      // Resize color texture
+      this.gl.bindTexture(this.gl.TEXTURE_2D, this.colorTexture);
+      this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.canvas.width, this.canvas.height, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null);
+      
+      // Resize depth buffer
+      this.gl.bindRenderbuffer(this.gl.RENDERBUFFER, this.depthBuffer);
+      this.gl.renderbufferStorage(this.gl.RENDERBUFFER, this.gl.DEPTH_COMPONENT16, this.canvas.width, this.canvas.height);
+    }
   }
   
   // Matrix math utilities
@@ -417,38 +614,38 @@ class MaxHeadroomBackground extends HTMLElement {
   }
 
   lookAt(eye, target, up) {
-    const [ex, ey, ez] = eye;
-    const [tx, ty, tz] = target;
-    const [ux, uy, uz] = up;
-  
-    // Compute forward vector (target - eye)
-    let fx = tx - ex, fy = ty - ey, fz = tz - ez;
-    let rlf = 1 / Math.hypot(fx, fy, fz);
-    fx *= rlf; fy *= rlf; fz *= rlf;
-  
-    // Compute right vector
-    let rx = fy * uz - fz * uy;
-    let ry = fz * ux - fx * uz;
-    let rz = fx * uy - fy * ux;
-    let rlr = 1 / Math.hypot(rx, ry, rz);
-    rx *= rlr; ry *= rlr; rz *= rlr;
-  
-    // Compute up vector (recalculated)
-    let ux_ = ry * fz - rz * fy;
-    let uy_ = rz * fx - rx * fz;
-    let uz_ = rx * fy - ry * fx;
-  
-    return [
-      rx, ux_, -fx, 0,
-      ry, uy_, -fy, 0,
-      rz, uz_, -fz, 0,
-      -(rx*ex + ry*ey + rz*ez),
-      -(ux_*ex + uy_*ey + uz_*ez),
-      fx*ex + fy*ey + fz*ez,
-      1
-    ];
-  }
-  
+  const [ex, ey, ez] = eye;
+  const [tx, ty, tz] = target;
+  const [ux, uy, uz] = up;
+
+  // Compute forward vector (target - eye)
+  let fx = tx - ex, fy = ty - ey, fz = tz - ez;
+  let rlf = 1 / Math.hypot(fx, fy, fz);
+  fx *= rlf; fy *= rlf; fz *= rlf;
+
+  // Compute right vector
+  let rx = fy * uz - fz * uy;
+  let ry = fz * ux - fx * uz;
+  let rz = fx * uy - fy * ux;
+  let rlr = 1 / Math.hypot(rx, ry, rz);
+  rx *= rlr; ry *= rlr; rz *= rlr;
+
+  // Compute up vector (recalculated)
+  let ux_ = ry * fz - rz * fy;
+  let uy_ = rz * fx - rx * fz;
+  let uz_ = rx * fy - ry * fx;
+
+  return [
+    rx, ux_, -fx, 0,
+    ry, uy_, -fy, 0,
+    rz, uz_, -fz, 0,
+    -(rx*ex + ry*ey + rz*ez),
+    -(ux_*ex + uy_*ey + uz_*ez),
+    fx*ex + fy*ey + fz*ez,
+    1
+  ];
+}
+
   
   animate() {
     const currentTime = (Date.now() - this.startTime) / 1000.0;
@@ -458,39 +655,46 @@ class MaxHeadroomBackground extends HTMLElement {
     this.currentRotation.y += this.rotationY;
     this.currentRotation.z += this.rotationZ;
     
+    // FIRST PASS: Render cube scene to framebuffer
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.framebuffer);
+    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+    
     this.gl.useProgram(this.program);
     
-    // Clear the canvas
+    // Clear the framebuffer
     this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
     this.gl.clearDepth(1.0);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+    
+    // Enable depth testing for cube rendering
+    this.gl.enable(this.gl.DEPTH_TEST);
+    this.gl.enable(this.gl.CULL_FACE);
     
     // Set up projection matrix
     const fieldOfView = 45 * Math.PI / 180;
     const aspect = this.canvas.width / this.canvas.height;
     const projectionMatrix = this.createPerspectiveMatrix(fieldOfView, aspect, 0.1, 100.0);
     
-    // Set up model-view matrix (camera is inside the cube at origin)
-    const translationMatrix = this.createTranslationMatrix(0.0, 0.0, 0.0);
-    const rotationXMatrix = this.createRotationXMatrix(this.currentRotation.x);
-    const rotationYMatrix = this.createRotationYMatrix(this.currentRotation.y);
-    const rotationZMatrix = this.createRotationZMatrix(this.currentRotation.z);
-    
     // Radial camera distance from center
-    const distance = 3.0; // Try values between 3 and 15
-    const angle = this.currentRotation.y; // Use rotation to orbit around center
+    const distance = this.getCameraDistance(); // Camera distance from cube center
+    
+    // Use spherical coordinates for full 3D rotation around the cube
+    const theta = this.currentRotation.x; // Polar angle (0 to π)
+    const phi = this.currentRotation.y;   // Azimuthal angle (0 to 2π)
 
-    // Camera position on a circular path around origin
-    const camX = Math.sin(angle) * distance;
-    const camZ = Math.cos(angle) * distance;
-    const camY = Math.sin(this.currentRotation.x) * 0.5; // Optional vertical bobbing
+    // Camera position on spherical surface around origin
+    const camX = distance * Math.sin(theta) * Math.cos(phi);
+    const camY = distance * Math.cos(theta);
+    const camZ = distance * Math.sin(theta) * Math.sin(phi);
 
-    // Look-at matrix: camera looks from (camX, camY, camZ) toward (0,0,0)
+    // Look-at matrix: camera looks from spherical position toward cube center (0,0,0)
     const modelViewMatrix = this.lookAt([camX, camY, camZ], [0, 0, 0], [0, 1, 0]);
     
     // Set uniforms
     this.gl.uniformMatrix4fv(this.uniforms.u_projectionMatrix, false, projectionMatrix);
     this.gl.uniformMatrix4fv(this.uniforms.u_modelViewMatrix, false, modelViewMatrix);
+    this.gl.uniform1f(this.uniforms.u_lineWidth, this.getLineWidth());
+    this.gl.uniform1f(this.uniforms.u_lineSpacing, this.getLineSpacing());
     
     // Bind position buffer
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.position);
@@ -510,6 +714,43 @@ class MaxHeadroomBackground extends HTMLElement {
     // Bind index buffer and draw
     this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.buffers.indices);
     this.gl.drawElements(this.gl.TRIANGLES, 36, this.gl.UNSIGNED_SHORT, 0);
+
+    // SECOND PASS: Render fisheye effect to screen
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+    
+    this.gl.useProgram(this.fisheyeProgram);
+    
+    // Disable depth testing for full-screen quad
+    this.gl.disable(this.gl.DEPTH_TEST);
+    this.gl.disable(this.gl.CULL_FACE);
+    
+    // Clear the screen
+    this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    
+    // Bind the rendered texture
+    this.gl.activeTexture(this.gl.TEXTURE0);
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.colorTexture);
+    this.gl.uniform1i(this.fisheyeUniforms.u_texture, 0);
+    
+    // Set fisheye uniforms
+    this.gl.uniform2f(this.fisheyeUniforms.u_resolution, this.canvas.width, this.canvas.height);
+    this.gl.uniform1f(this.fisheyeUniforms.u_time, currentTime);
+    this.gl.uniform1f(this.fisheyeUniforms.u_strength, this.getFisheyeStrength());
+    
+    // Bind quad position buffer
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.quadPosition);
+    this.gl.vertexAttribPointer(this.fisheyeAttributeLocations.a_position, 2, this.gl.FLOAT, false, 0, 0);
+    this.gl.enableVertexAttribArray(this.fisheyeAttributeLocations.a_position);
+    
+    // Bind quad texture coordinate buffer
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.quadTexCoord);
+    this.gl.vertexAttribPointer(this.fisheyeAttributeLocations.a_texCoord, 2, this.gl.FLOAT, false, 0, 0);
+    this.gl.enableVertexAttribArray(this.fisheyeAttributeLocations.a_texCoord);
+    
+    // Draw the full-screen quad
+    this.gl.drawArrays(this.gl.TRIANGLE_FAN, 0, 4);
     
     this.animationId = requestAnimationFrame(() => this.animate());
   }
