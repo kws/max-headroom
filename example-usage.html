@@ -50,7 +50,7 @@
 </head>
 <body>
   <!-- Simply add the component anywhere in your HTML -->
-  <max-headroom-bg></max-headroom-bg>
+  <max-headroom-bg speed="0.5"></max-headroom-bg>
   
   <div class="content">
     <h1>Easy Integration!</h1>
@@ -60,9 +60,15 @@
 &lt;script type="module" src="path/to/max-headroom.js"&gt;&lt;/script&gt;
 
 2. Add it to your HTML:
-&lt;max-headroom-bg&gt;&lt;/max-headroom-bg&gt;
+&lt;max-headroom-bg speed="0.3"&gt;&lt;/max-headroom-bg&gt;
 
-3. Style as needed:
+3. Control the speed (optional):
+speed="0.1"  // Very slow
+speed="0.5"  // Medium (default if no attribute)
+speed="1.0"  // Fast
+speed="2.0"  // Very fast
+
+4. Style as needed:
 max-headroom-bg {
   position: fixed;
   top: 0;
@@ -72,7 +78,7 @@ max-headroom-bg {
   z-index: -1;
 }</div>
     
-    <p>The component is fully self-contained and responsive. Move your mouse around to see the interactive effects!</p>
+    <p>The component is fully self-contained and responsive. Watch the authentic Max Headroom cube spin with its bright neon colors!</p>
   </div>
   
   <!-- Import the Max Headroom component -->

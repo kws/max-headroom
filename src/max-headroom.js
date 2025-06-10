@@ -9,13 +9,45 @@ class MaxHeadroomBackground extends HTMLElement {
     this.startTime = Date.now();
     
     this.uniforms = {
-      u_time: null,
-      u_resolution: null,
-      u_mouse: null
+      u_modelViewMatrix: null,
+      u_projectionMatrix: null
     };
     
-    this.mouseX = 0;
-    this.mouseY = 0;
+    this.attributeLocations = {
+      a_position: null,
+      a_color: null,
+      a_texCoord: null
+    };
+    
+    this.buffers = {
+      position: null,
+      color: null,
+      texCoord: null,
+      indices: null
+    };
+    
+    this.currentRotation = { x: 0, y: 0, z: 0 };
+    this.updateRotationSpeeds();
+  }
+  
+  static get observedAttributes() {
+    return ['speed'];
+  }
+  
+  attributeChangedCallback(name, oldValue, newValue) {
+    if (name === 'speed' && oldValue !== newValue) {
+      this.updateRotationSpeeds();
+    }
+  }
+  
+  updateRotationSpeeds() {
+    // Get speed from attribute, default to 0.3 (slower than before)
+    const speed = parseFloat(this.getAttribute('speed') || '0.3');
+    
+    // Random rotation speeds for each axis, scaled by speed
+    this.rotationX = (Math.random() * 0.01 + 0.003) * speed;
+    this.rotationY = (Math.random() * 0.01 + 0.003) * speed;
+    this.rotationZ = (Math.random() * 0.01 + 0.003) * speed;
   }
   
   connectedCallback() {
@@ -62,124 +94,73 @@ class MaxHeadroomBackground extends HTMLElement {
     
     this.resizeCanvas();
     
-    // Vertex shader
+    // Enable depth testing for 3D
+    this.gl.enable(this.gl.DEPTH_TEST);
+    this.gl.depthFunc(this.gl.LEQUAL);
+    this.gl.enable(this.gl.CULL_FACE);
+    this.gl.cullFace(this.gl.BACK);
+    
+    // Vertex shader for 3D cube
     const vertexShaderSource = `
       attribute vec4 a_position;
+      attribute vec4 a_color;
+      attribute vec2 a_texCoord;
+      
+      uniform mat4 u_modelViewMatrix;
+      uniform mat4 u_projectionMatrix;
+      
+      varying vec4 v_color;
+      varying vec2 v_texCoord;
+      
       void main() {
-        gl_Position = a_position;
+        gl_Position = u_projectionMatrix * u_modelViewMatrix * a_position;
+        v_color = a_color;
+        v_texCoord = a_texCoord;
       }
     `;
     
-    // Fragment shader with Max Headroom style effects
+    // Fragment shader with line patterns
     const fragmentShaderSource = `
       precision mediump float;
-      uniform float u_time;
-      uniform vec2 u_resolution;
-      uniform vec2 u_mouse;
-      
-      // Noise function
-      float random(vec2 st) {
-        return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
-      }
-      
-      // 2D Noise
-      float noise(vec2 st) {
-        vec2 i = floor(st);
-        vec2 f = fract(st);
-        
-        float a = random(i);
-        float b = random(i + vec2(1.0, 0.0));
-        float c = random(i + vec2(0.0, 1.0));
-        float d = random(i + vec2(1.0, 1.0));
-        
-        vec2 u = f * f * (3.0 - 2.0 * f);
-        
-        return mix(a, b, u.x) +
-               (c - a)* u.y * (1.0 - u.x) +
-               (d - b) * u.x * u.y;
-      }
-      
-      // Grid function
-      float grid(vec2 st, float res) {
-        vec2 grid = fract(st * res);
-        return (step(res, grid.x) * step(res, grid.y));
-      }
-      
-      // Digital distortion
-      vec2 digitalDistort(vec2 uv, float time) {
-        float distortionStrength = 0.01;
-        uv.x += sin(uv.y * 20.0 + time * 3.0) * distortionStrength;
-        uv.y += cos(uv.x * 15.0 + time * 2.0) * distortionStrength;
-        return uv;
-      }
+      varying vec4 v_color;
+      varying vec2 v_texCoord;
       
       void main() {
-        vec2 st = gl_FragCoord.xy / u_resolution.xy;
-        vec2 mouse = u_mouse / u_resolution.xy;
+        vec2 uv = v_texCoord;
         
-        // Apply digital distortion
-        st = digitalDistort(st, u_time);
+        // Create line patterns based on face color
+        float pattern = 0.0;
         
-        // Create animated grid
-        float time = u_time * 0.5;
-        vec2 gridSt = st * 10.0;
-        gridSt += vec2(sin(time * 0.5), cos(time * 0.3)) * 0.5;
-        
-        float gridPattern = grid(gridSt, 0.02);
-        
-        // Add diagonal lines
-        float diagonals = abs(sin((st.x + st.y) * 20.0 + time * 2.0));
-        diagonals = smoothstep(0.8, 1.0, diagonals);
-        
-        // Create interference patterns
-        float interference = sin(st.y * 100.0 + time * 10.0) * 0.1;
-        interference += sin(st.x * 80.0 + time * 8.0) * 0.05;
-        
-        // Noise layer
-        float noisePattern = noise(st * 5.0 + time * 0.1);
-        
-        // Mouse interaction - create ripples
-        float mouseDistance = distance(st, mouse);
-        float mouseRipple = sin(mouseDistance * 20.0 - time * 5.0) * 0.1;
-        mouseRipple *= exp(-mouseDistance * 3.0);
-        
-        // Combine all patterns
-        float pattern = gridPattern + diagonals * 0.3 + interference + noisePattern * 0.2 + mouseRipple;
-        
-        // Max Headroom color palette
-        vec3 color1 = vec3(0.0, 0.8, 1.0);  // Cyan
-        vec3 color2 = vec3(1.0, 0.0, 1.0);  // Magenta
-        vec3 color3 = vec3(0.0, 1.0, 0.8);  // Green-cyan
-        vec3 color4 = vec3(1.0, 0.5, 0.0);  // Orange
-        
-        // Create color bands
-        float colorMix = sin(st.y * 3.0 + time) * 0.5 + 0.5;
-        vec3 baseColor = mix(color1, color2, colorMix);
-        baseColor = mix(baseColor, color3, sin(st.x * 2.0 + time * 0.7) * 0.5 + 0.5);
-        
-        // Add scanlines
-        float scanline = sin(st.y * u_resolution.y * 0.5) * 0.1 + 0.9;
-        
-        // Apply pattern and effects
-        vec3 finalColor = baseColor * pattern * scanline;
-        
-        // Add some glow
-        finalColor += baseColor * 0.1;
-        
-        // Darken the background
-        finalColor *= 0.7;
-        
-        // Add random digital artifacts
-        if (random(floor(st * 100.0) + floor(time * 10.0)) > 0.996) {
-          finalColor = vec3(1.0);
+        // Different line patterns for different faces - thin lines with more space
+        if (v_color.r > 0.9 && v_color.g < 0.1 && v_color.b < 0.1) {
+          // Red face - thin horizontal lines
+          pattern = step(0.85, mod(uv.y * 20.0, 1.0));
+        } else if (v_color.r < 0.1 && v_color.g > 0.9 && v_color.b < 0.1) {
+          // Green face - thin vertical lines  
+          pattern = step(0.85, mod(uv.x * 20.0, 1.0));
+        } else if (v_color.r < 0.1 && v_color.g < 0.1 && v_color.b > 0.9) {
+          // Blue face - thin horizontal lines
+          pattern = step(0.85, mod(uv.y * 18.0, 1.0));
+        } else if (v_color.r > 0.9 && v_color.g > 0.9 && v_color.b < 0.1) {
+          // Yellow face - thin vertical lines
+          pattern = step(0.85, mod(uv.x * 18.0, 1.0));
+        } else if (v_color.r > 0.9 && v_color.g < 0.1 && v_color.b > 0.9) {
+          // Magenta face - thin diagonal lines
+          pattern = step(0.85, mod((uv.x + uv.y) * 15.0, 1.0));
+        } else {
+          // Cyan face - thin horizontal lines
+          pattern = step(0.85, mod(uv.y * 22.0, 1.0));
         }
         
-        gl_FragColor = vec4(finalColor, 1.0);
+        // Add some glow effect
+        float glow = pattern * 0.8 + 0.2;
+        
+        gl_FragColor = vec4(v_color.rgb * glow, 1.0);
       }
     `;
     
     this.program = this.createShaderProgram(vertexShaderSource, fragmentShaderSource);
-    this.setupGeometry();
+    this.setupCubeGeometry();
     this.setupUniforms();
   }
   
@@ -214,39 +195,144 @@ class MaxHeadroomBackground extends HTMLElement {
     return shader;
   }
   
-  setupGeometry() {
+  setupCubeGeometry() {
+    // Large cube vertices (camera is inside looking out)
+    const size = 10.0; // Make cube much larger
     const positions = [
-      -1, -1,
-       1, -1,
-      -1,  1,
-      -1,  1,
-       1, -1,
-       1,  1,
+      // Front face (reversed winding for inner face)
+      -size, -size,  size,
+      -size,  size,  size,
+       size,  size,  size,
+       size, -size,  size,
+      
+      // Back face (reversed winding for inner face)  
+      -size, -size, -size,
+       size, -size, -size,
+       size,  size, -size,
+      -size,  size, -size,
+      
+      // Top face (reversed winding for inner face)
+      -size,  size, -size,
+       size,  size, -size,
+       size,  size,  size,
+      -size,  size,  size,
+      
+      // Bottom face (reversed winding for inner face)
+      -size, -size, -size,
+      -size, -size,  size,
+       size, -size,  size,
+       size, -size, -size,
+      
+      // Right face (reversed winding for inner face)
+       size, -size, -size,
+       size, -size,  size,
+       size,  size,  size,
+       size,  size, -size,
+      
+      // Left face (reversed winding for inner face)
+      -size, -size, -size,
+      -size,  size, -size,
+      -size,  size,  size,
+      -size, -size,  size,
     ];
     
-    const buffer = this.gl.createBuffer();
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
+    // Max Headroom colors - bright neon 80s palette
+    const colors = [
+      // Front face - Bright Cyan
+      0.0, 1.0, 1.0, 1.0,
+      0.0, 1.0, 1.0, 1.0,
+      0.0, 1.0, 1.0, 1.0,
+      0.0, 1.0, 1.0, 1.0,
+      
+      // Back face - Bright Magenta
+      1.0, 0.0, 1.0, 1.0,
+      1.0, 0.0, 1.0, 1.0,
+      1.0, 0.0, 1.0, 1.0,
+      1.0, 0.0, 1.0, 1.0,
+      
+      // Top face - Bright Yellow
+      1.0, 1.0, 0.0, 1.0,
+      1.0, 1.0, 0.0, 1.0,
+      1.0, 1.0, 0.0, 1.0,
+      1.0, 1.0, 0.0, 1.0,
+      
+      // Bottom face - Bright Green
+      0.0, 1.0, 0.0, 1.0,
+      0.0, 1.0, 0.0, 1.0,
+      0.0, 1.0, 0.0, 1.0,
+      0.0, 1.0, 0.0, 1.0,
+      
+      // Right face - Bright Red
+      1.0, 0.0, 0.0, 1.0,
+      1.0, 0.0, 0.0, 1.0,
+      1.0, 0.0, 0.0, 1.0,
+      1.0, 0.0, 0.0, 1.0,
+      
+      // Left face - Bright Blue
+      0.0, 0.0, 1.0, 1.0,
+      0.0, 0.0, 1.0, 1.0,
+      0.0, 0.0, 1.0, 1.0,
+      0.0, 0.0, 1.0, 1.0,
+    ];
+    
+    // Indices for the cube faces
+    const indices = [
+      0,  1,  2,      0,  2,  3,    // front
+      4,  5,  6,      4,  6,  7,    // back
+      8,  9,  10,     8,  10, 11,   // top
+      12, 13, 14,     12, 14, 15,   // bottom
+      16, 17, 18,     16, 18, 19,   // right
+      20, 21, 22,     20, 22, 23,   // left
+    ];
+    
+    // Create and bind position buffer
+    this.buffers.position = this.gl.createBuffer();
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.position);
     this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(positions), this.gl.STATIC_DRAW);
     
-    const positionLocation = this.gl.getAttribLocation(this.program, 'a_position');
-    this.gl.enableVertexAttribArray(positionLocation);
-    this.gl.vertexAttribPointer(positionLocation, 2, this.gl.FLOAT, false, 0, 0);
+    // Create and bind color buffer
+    this.buffers.color = this.gl.createBuffer();
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.color);
+    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(colors), this.gl.STATIC_DRAW);
+    
+    // Texture coordinates for each face (standard 0-1 mapping)
+    const texCoords = [
+      // Front face
+      0.0, 0.0,  0.0, 1.0,  1.0, 1.0,  1.0, 0.0,
+      // Back face  
+      0.0, 0.0,  1.0, 0.0,  1.0, 1.0,  0.0, 1.0,
+      // Top face
+      0.0, 0.0,  1.0, 0.0,  1.0, 1.0,  0.0, 1.0,
+      // Bottom face
+      0.0, 0.0,  0.0, 1.0,  1.0, 1.0,  1.0, 0.0,
+      // Right face
+      0.0, 0.0,  0.0, 1.0,  1.0, 1.0,  1.0, 0.0,
+      // Left face
+      0.0, 0.0,  1.0, 0.0,  1.0, 1.0,  0.0, 1.0,
+    ];
+    
+    // Create and bind texture coordinate buffer
+    this.buffers.texCoord = this.gl.createBuffer();
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.texCoord);
+    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(texCoords), this.gl.STATIC_DRAW);
+    
+    // Create and bind index buffer
+    this.buffers.indices = this.gl.createBuffer();
+    this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.buffers.indices);
+    this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), this.gl.STATIC_DRAW);
   }
   
   setupUniforms() {
-    this.uniforms.u_time = this.gl.getUniformLocation(this.program, 'u_time');
-    this.uniforms.u_resolution = this.gl.getUniformLocation(this.program, 'u_resolution');
-    this.uniforms.u_mouse = this.gl.getUniformLocation(this.program, 'u_mouse');
+    this.uniforms.u_modelViewMatrix = this.gl.getUniformLocation(this.program, 'u_modelViewMatrix');
+    this.uniforms.u_projectionMatrix = this.gl.getUniformLocation(this.program, 'u_projectionMatrix');
+    
+    this.attributeLocations.a_position = this.gl.getAttribLocation(this.program, 'a_position');
+    this.attributeLocations.a_color = this.gl.getAttribLocation(this.program, 'a_color');
+    this.attributeLocations.a_texCoord = this.gl.getAttribLocation(this.program, 'a_texCoord');
   }
   
   setupEventListeners() {
     window.addEventListener('resize', () => this.resizeCanvas());
-    
-    this.canvas.addEventListener('mousemove', (e) => {
-      const rect = this.canvas.getBoundingClientRect();
-      this.mouseX = e.clientX - rect.left;
-      this.mouseY = rect.height - (e.clientY - rect.top);
-    });
   }
   
   resizeCanvas() {
@@ -256,20 +342,174 @@ class MaxHeadroomBackground extends HTMLElement {
     this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
   }
   
+  // Matrix math utilities
+  createPerspectiveMatrix(fov, aspect, near, far) {
+    const f = Math.tan(Math.PI * 0.5 - 0.5 * fov);
+    const rangeInv = 1.0 / (near - far);
+    
+    return [
+      f / aspect, 0, 0, 0,
+      0, f, 0, 0,
+      0, 0, (near + far) * rangeInv, -1,
+      0, 0, near * far * rangeInv * 2, 0
+    ];
+  }
+  
+  createTranslationMatrix(tx, ty, tz) {
+    return [
+      1, 0, 0, 0,
+      0, 1, 0, 0,
+      0, 0, 1, 0,
+      tx, ty, tz, 1
+    ];
+  }
+  
+  createRotationXMatrix(angleInRadians) {
+    const c = Math.cos(angleInRadians);
+    const s = Math.sin(angleInRadians);
+    
+    return [
+      1, 0, 0, 0,
+      0, c, s, 0,
+      0, -s, c, 0,
+      0, 0, 0, 1
+    ];
+  }
+  
+  createRotationYMatrix(angleInRadians) {
+    const c = Math.cos(angleInRadians);
+    const s = Math.sin(angleInRadians);
+    
+    return [
+      c, 0, -s, 0,
+      0, 1, 0, 0,
+      s, 0, c, 0,
+      0, 0, 0, 1
+    ];
+  }
+  
+  createRotationZMatrix(angleInRadians) {
+    const c = Math.cos(angleInRadians);
+    const s = Math.sin(angleInRadians);
+    
+    return [
+      c, s, 0, 0,
+      -s, c, 0, 0,
+      0, 0, 1, 0,
+      0, 0, 0, 1
+    ];
+  }
+  
+  multiplyMatrices(a, b) {
+    const result = new Array(16);
+    
+    for (let i = 0; i < 4; i++) {
+      for (let j = 0; j < 4; j++) {
+        result[i * 4 + j] = 
+          a[i * 4 + 0] * b[0 * 4 + j] +
+          a[i * 4 + 1] * b[1 * 4 + j] +
+          a[i * 4 + 2] * b[2 * 4 + j] +
+          a[i * 4 + 3] * b[3 * 4 + j];
+      }
+    }
+    
+    return result;
+  }
+
+  lookAt(eye, target, up) {
+    const [ex, ey, ez] = eye;
+    const [tx, ty, tz] = target;
+    const [ux, uy, uz] = up;
+  
+    // Compute forward vector (target - eye)
+    let fx = tx - ex, fy = ty - ey, fz = tz - ez;
+    let rlf = 1 / Math.hypot(fx, fy, fz);
+    fx *= rlf; fy *= rlf; fz *= rlf;
+  
+    // Compute right vector
+    let rx = fy * uz - fz * uy;
+    let ry = fz * ux - fx * uz;
+    let rz = fx * uy - fy * ux;
+    let rlr = 1 / Math.hypot(rx, ry, rz);
+    rx *= rlr; ry *= rlr; rz *= rlr;
+  
+    // Compute up vector (recalculated)
+    let ux_ = ry * fz - rz * fy;
+    let uy_ = rz * fx - rx * fz;
+    let uz_ = rx * fy - ry * fx;
+  
+    return [
+      rx, ux_, -fx, 0,
+      ry, uy_, -fy, 0,
+      rz, uz_, -fz, 0,
+      -(rx*ex + ry*ey + rz*ez),
+      -(ux_*ex + uy_*ey + uz_*ez),
+      fx*ex + fy*ey + fz*ez,
+      1
+    ];
+  }
+  
+  
   animate() {
     const currentTime = (Date.now() - this.startTime) / 1000.0;
     
+    // Update rotations
+    this.currentRotation.x += this.rotationX;
+    this.currentRotation.y += this.rotationY;
+    this.currentRotation.z += this.rotationZ;
+    
     this.gl.useProgram(this.program);
     
-    // Update uniforms
-    this.gl.uniform1f(this.uniforms.u_time, currentTime);
-    this.gl.uniform2f(this.uniforms.u_resolution, this.canvas.width, this.canvas.height);
-    this.gl.uniform2f(this.uniforms.u_mouse, this.mouseX, this.mouseY);
-    
-    // Clear and draw
+    // Clear the canvas
     this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-    this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
+    this.gl.clearDepth(1.0);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+    
+    // Set up projection matrix
+    const fieldOfView = 45 * Math.PI / 180;
+    const aspect = this.canvas.width / this.canvas.height;
+    const projectionMatrix = this.createPerspectiveMatrix(fieldOfView, aspect, 0.1, 100.0);
+    
+    // Set up model-view matrix (camera is inside the cube at origin)
+    const translationMatrix = this.createTranslationMatrix(0.0, 0.0, 0.0);
+    const rotationXMatrix = this.createRotationXMatrix(this.currentRotation.x);
+    const rotationYMatrix = this.createRotationYMatrix(this.currentRotation.y);
+    const rotationZMatrix = this.createRotationZMatrix(this.currentRotation.z);
+    
+    // Radial camera distance from center
+    const distance = 3.0; // Try values between 3 and 15
+    const angle = this.currentRotation.y; // Use rotation to orbit around center
+
+    // Camera position on a circular path around origin
+    const camX = Math.sin(angle) * distance;
+    const camZ = Math.cos(angle) * distance;
+    const camY = Math.sin(this.currentRotation.x) * 0.5; // Optional vertical bobbing
+
+    // Look-at matrix: camera looks from (camX, camY, camZ) toward (0,0,0)
+    const modelViewMatrix = this.lookAt([camX, camY, camZ], [0, 0, 0], [0, 1, 0]);
+    
+    // Set uniforms
+    this.gl.uniformMatrix4fv(this.uniforms.u_projectionMatrix, false, projectionMatrix);
+    this.gl.uniformMatrix4fv(this.uniforms.u_modelViewMatrix, false, modelViewMatrix);
+    
+    // Bind position buffer
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.position);
+    this.gl.vertexAttribPointer(this.attributeLocations.a_position, 3, this.gl.FLOAT, false, 0, 0);
+    this.gl.enableVertexAttribArray(this.attributeLocations.a_position);
+    
+    // Bind color buffer
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.color);
+    this.gl.vertexAttribPointer(this.attributeLocations.a_color, 4, this.gl.FLOAT, false, 0, 0);
+    this.gl.enableVertexAttribArray(this.attributeLocations.a_color);
+    
+    // Bind texture coordinate buffer
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.texCoord);
+    this.gl.vertexAttribPointer(this.attributeLocations.a_texCoord, 2, this.gl.FLOAT, false, 0, 0);
+    this.gl.enableVertexAttribArray(this.attributeLocations.a_texCoord);
+    
+    // Bind index buffer and draw
+    this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.buffers.indices);
+    this.gl.drawElements(this.gl.TRIANGLES, 36, this.gl.UNSIGNED_SHORT, 0);
     
     this.animationId = requestAnimationFrame(() => this.animate());
   }

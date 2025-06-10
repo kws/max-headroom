@@ -133,40 +133,25 @@
       }
     }
     
-    .scanline {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, #00ffff, transparent);
-      animation: scanlineMove 3s linear infinite;
-      z-index: 2;
-      opacity: 0.7;
-    }
-    
-    @keyframes scanlineMove {
-      0% { top: -2px; }
-      100% { top: 100vh; }
-    }
+
   </style>
 </head>
 <body>
-  <max-headroom-bg></max-headroom-bg>
+  <max-headroom-bg speed="0.3"></max-headroom-bg>
   
-  <div class="scanline"></div>
-  
+
   <div class="content">
     <h1 class="title">Max Headroom</h1>
     <p class="subtitle">WebGL Cyberpunk Background</p>
     <div class="description">
-      <p>Experience the iconic 80s digital aesthetic with this WebGL-powered background component. 
-      Featuring animated geometric patterns, neon colors, digital distortion effects, and 
-      interactive mouse ripples that bring the classic Max Headroom visual style to life.</p>
+      <p>The authentic Max Headroom background - a simple rotating 3D cube with bright neon colors. 
+      Each face displays a different vibrant 80s color (cyan, magenta, yellow, green, red, blue) 
+      as it spins on random axes, positioned close enough that you only see one face at a time.</p>
     </div>
     <div class="controls">
-      <p>• Move your mouse to create interactive ripples</p>
-      <p>• Resize the window to see responsive scaling</p>
+      <p>• Authentic rotating cube animation</p>
+      <p>• Bright neon 80s color palette</p>
+      <p>• Controllable speed: speed="0.1" to "2.0"</p>
       <p>• Built as a reusable web component</p>
     </div>
   </div>
