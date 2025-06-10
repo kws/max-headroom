@@ -3,49 +3,181 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Body Segmentation Demo</title>
+  <title>Max Headroom Body Segmentation Demo</title>
   <style>
     body {
       margin: 0;
       overflow: hidden;
       font-family: Arial, sans-serif;
     }
-    video, canvas {
+    
+    #container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+    
+    max-headroom-bg {
       position: absolute;
       top: 0;
       left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
     }
+    
+    video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: none; /* Hide the original video */
+    }
+    
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 2;
+      object-fit: cover;
+    }
+    
     #status {
       position: absolute;
       top: 10px;
       left: 10px;
-      background: rgba(0,0,0,0.7);
-      color: white;
-      padding: 10px;
-      border-radius: 5px;
+      background: rgba(0,0,0,0.8);
+      color: #00ffff;
+      padding: 15px;
+      border-radius: 8px;
       z-index: 100;
+      font-family: 'Courier New', monospace;
+      border: 1px solid #00ffff;
+      text-shadow: 0 0 5px #00ffff;
+    }
+    
+    #controls {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.8);
+      color: #00ffff;
+      padding: 15px;
+      border-radius: 8px;
+      z-index: 100;
+      font-family: 'Courier New', monospace;
+      border: 1px solid #00ffff;
+    }
+    
+    #controls label {
+      display: block;
+      margin-bottom: 8px;
+      color: #00ffff;
+      text-shadow: 0 0 5px #00ffff;
+    }
+    
+    #controls input[type="range"] {
+      width: 150px;
+      margin-left: 10px;
     }
   </style>
 </head>
 <body>
-  <div id="status">Loading...</div>
-  <video id="video" autoplay muted playsinline width="640" height="480"></video>
-  <canvas id="output" width="640" height="480"></canvas>
+  <div id="container">
+    <!-- Max Headroom background -->
+    <max-headroom-bg 
+      id="background"
+      speed="0.5" 
+      fisheye-strength="0.15"
+      camera-distance="0.8"
+      line-width="0.3"
+      line-spacing="60.0">
+    </max-headroom-bg>
+    
+    <div id="status">Loading...</div>
+    
+    <div id="controls">
+      <label>Background Speed: <input type="range" id="speedSlider" min="0.1" max="2.0" step="0.1" value="0.5"></label>
+      <label>Fisheye Effect: <input type="range" id="fisheyeSlider" min="0.0" max="0.5" step="0.05" value="0.15"></label>
+      <label>Glitch Frequency: <input type="range" id="glitchSlider" min="0" max="10" step="1" value="3"></label>
+    </div>
+    
+    <video id="video" autoplay muted playsinline width="640" height="480"></video>
+    <canvas id="output"></canvas>
+  </div>
 
+  <!-- Load Max Headroom component -->
+  <script type="module" src="src/max-headroom.js"></script>
+  
   <!-- Load TensorFlow.js -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-  <!-- Load BodyPix directly -->
+  <!-- Load BodyPix -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.0.0/dist/body-pix.min.js"></script>
 
   <script>
     const video = document.getElementById('video');
     const canvas = document.getElementById('output');
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const status = document.getElementById('status');
+    const background = document.getElementById('background');
+    
+    // Control elements
+    const speedSlider = document.getElementById('speedSlider');
+    const fisheyeSlider = document.getElementById('fisheyeSlider');
+    const glitchSlider = document.getElementById('glitchSlider');
+    
+    let glitchFrequency = 3;
+    
+    // Glitch state management
+    let glitchState = {
+      isGlitching: false,
+      glitchType: 'none',
+      glitchStartTime: 0,
+      glitchDuration: 0,
+      nextGlitchTime: 0,
+      lastGlitchType: 'none',
+      repeatCount: 0,
+      maxRepeats: 0
+    };
+    
+    // Create temporary canvas for transform operations
+    let tempCanvas = null;
+    let tempCtx = null;
+
+    // Set up control event listeners
+    speedSlider.addEventListener('input', (e) => {
+      background.setAttribute('speed', e.target.value);
+    });
+    
+    fisheyeSlider.addEventListener('input', (e) => {
+      background.setAttribute('fisheye-strength', e.target.value);
+    });
+    
+    glitchSlider.addEventListener('input', (e) => {
+      glitchFrequency = parseInt(e.target.value);
+    });
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      
+      // Also resize temp canvas
+      if (!tempCanvas) {
+        tempCanvas = document.createElement('canvas');
+        tempCtx = tempCanvas.getContext('2d');
+      }
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+    }
 
     async function setupCamera() {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480 },
+        video: { 
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          facingMode: 'user' // Use front camera if available
+        },
         audio: false,
       });
       video.srcObject = stream;
@@ -56,15 +188,183 @@
       });
     }
 
+    function applySegmentationMask(imageData, segmentation, videoRect) {
+      const data = imageData.data;
+      const segmentationData = segmentation.data;
+      const segWidth = segmentation.width;
+      const segHeight = segmentation.height;
+      
+      // Calculate scaling factors between segmentation and drawn video
+      const scaleX = videoRect.width / segWidth;
+      const scaleY = videoRect.height / segHeight;
+      
+      // Apply segmentation - make background transparent
+      for (let y = 0; y < imageData.height; y++) {
+        for (let x = 0; x < imageData.width; x++) {
+          const pixelIndex = (y * imageData.width + x) * 4;
+          
+          // Check if this pixel is within the video area
+          if (x >= videoRect.offsetX && x < videoRect.offsetX + videoRect.width &&
+              y >= videoRect.offsetY && y < videoRect.offsetY + videoRect.height) {
+            
+            // Map canvas coordinates to segmentation coordinates
+            const videoX = x - videoRect.offsetX;
+            const videoY = y - videoRect.offsetY;
+            const segX = Math.floor(videoX / scaleX);
+            const segY = Math.floor(videoY / scaleY);
+            
+            // Ensure we're within segmentation bounds
+            if (segX >= 0 && segX < segWidth && segY >= 0 && segY < segHeight) {
+              const segIndex = segY * segWidth + segX;
+              
+              // If this pixel is not a person (segmentation value is 0), make it transparent
+              if (segmentationData[segIndex] === 0) {
+                data[pixelIndex + 3] = 0; // Set alpha to 0 (transparent)
+              }
+
+            }
+          } else {
+            // Outside video area - make transparent
+            data[pixelIndex + 3] = 0;
+          }
+        }
+      }
+      
+      return imageData;
+    }
+
+
+
+    function updateGlitchState(currentTime) {
+      // If not currently glitching and it's time for a new glitch
+      if (!glitchState.isGlitching && currentTime >= glitchState.nextGlitchTime) {
+        if (glitchFrequency > 0) {
+          // Start a new glitch
+          glitchState.isGlitching = true;
+          glitchState.glitchStartTime = currentTime;
+          glitchState.glitchDuration = 80 + Math.random() * 200; // 80-280ms (shorter for stuttering effect)
+          
+          // Decide if this should be a repeat or new glitch
+          const shouldRepeat = glitchState.lastGlitchType !== 'none' && 
+                              glitchState.repeatCount < glitchState.maxRepeats &&
+                              Math.random() < 0.7; // 70% chance to repeat
+          
+          if (shouldRepeat) {
+            // Repeat the last glitch type
+            glitchState.glitchType = glitchState.lastGlitchType;
+            glitchState.repeatCount++;
+            console.log(`Repeating glitch: ${glitchState.glitchType} (${glitchState.repeatCount}/${glitchState.maxRepeats})`);
+          } else {
+            // Choose new random glitch type
+            const glitchTypes = ['flipH', 'flipV', 'flipBoth', 'mirror', 'offset'];
+            glitchState.glitchType = glitchTypes[Math.floor(Math.random() * glitchTypes.length)];
+            glitchState.lastGlitchType = glitchState.glitchType;
+            glitchState.repeatCount = 1;
+            glitchState.maxRepeats = 1 + Math.floor(Math.random() * 4); // 1-4 repeats
+            console.log(`New glitch: ${glitchState.glitchType} (will repeat ${glitchState.maxRepeats} times)`);
+          }
+        }
+        
+        // Schedule next glitch based on frequency and repeat status
+        if (glitchFrequency > 0) {
+          if (glitchState.repeatCount < glitchState.maxRepeats) {
+            // Quick repeat - very short interval for stuttering effect
+            glitchState.nextGlitchTime = currentTime + 150 + Math.random() * 200; // 150-350ms
+          } else {
+            // Normal interval after repeat sequence is done
+            const minInterval = 500;  // 0.5 seconds at max frequency
+            const maxInterval = 5000; // 5 seconds at min frequency
+            const interval = maxInterval - ((glitchFrequency - 1) / 9) * (maxInterval - minInterval);
+            glitchState.nextGlitchTime = currentTime + interval + Math.random() * interval * 0.5;
+            
+            // Reset repeat tracking
+            glitchState.lastGlitchType = 'none';
+            glitchState.repeatCount = 0;
+            glitchState.maxRepeats = 0;
+          }
+        } else {
+          // No glitches when frequency is 0
+          glitchState.nextGlitchTime = currentTime + 10000; // Check again in 10 seconds
+        }
+      }
+      
+      // Check if current glitch should end
+      if (glitchState.isGlitching && 
+          currentTime >= glitchState.glitchStartTime + glitchState.glitchDuration) {
+        glitchState.isGlitching = false;
+        glitchState.glitchType = 'none';
+      }
+    }
+
+    function applyGlitchTransform(ctx, videoRect, currentTime) {
+      if (!glitchState.isGlitching) return;
+      
+      const centerX = videoRect.offsetX + videoRect.width / 2;
+      const centerY = videoRect.offsetY + videoRect.height / 2;
+      
+      // Save the current transform
+      ctx.save();
+
+      console.log(`Applying glitch transform: ${glitchState.glitchType}`);
+      
+      switch (glitchState.glitchType) {
+        case 'flipH':
+          // Horizontal flip
+          ctx.translate(centerX, centerY);
+          ctx.scale(-1, 1);
+          ctx.translate(-centerX, -centerY);
+          break;
+          
+        case 'flipV':
+          // Vertical flip
+          ctx.translate(centerX, centerY);
+          ctx.scale(1, -1);
+          ctx.translate(-centerX, -centerY);
+          break;
+          
+        case 'flipBoth':
+          // Both horizontal and vertical flip
+          ctx.translate(centerX, centerY);
+          ctx.scale(-1, -1);
+          ctx.translate(-centerX, -centerY);
+          break;
+          
+        case 'mirror':
+          // Mirror effect - flip horizontally and offset
+          ctx.translate(centerX, centerY);
+          ctx.scale(-1, 1);
+          ctx.translate(-centerX + (Math.sin(currentTime * 0.01) * 20), -centerY);
+          break;
+          
+        case 'offset':
+          // Slight offset glitch
+          const offsetX = (Math.random() - 0.5) * 40;
+          const offsetY = (Math.random() - 0.5) * 20;
+          ctx.translate(offsetX, offsetY);
+          break;
+      }
+      
+      return true; // Indicates transform was applied
+    }
+
+    function restoreGlitchTransform(ctx, wasTransformed) {
+      if (wasTransformed) {
+        ctx.restore();
+      }
+    }
+
     async function main() {
       try {
+        // Set initial canvas size
+        resizeCanvas();
+        
         status.innerText = 'Setting up camera...';
         await setupCamera();
         video.play();
         
         status.innerText = 'Loading BodyPix model...';
         
-        // Load BodyPix directly
+        // Load BodyPix with optimized settings for real-time performance
         const net = await bodyPix.load({
           architecture: 'MobileNetV1',
           outputStride: 16,
@@ -72,29 +372,85 @@
           quantBytes: 2,
         });
         
-        status.innerText = 'Model loaded! Segmenting...';
+        status.innerText = 'Max Headroom Active! Segmenting...';
 
         async function renderFrame() {
-          const segmentation = await net.segmentPerson(video);
-          
-          // Clear canvas
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          
-          // Draw original video
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          
-          if (segmentation) {
-            // Create mask using BodyPix utilities
-            const foregroundColor = {r: 0, g: 255, b: 0, a: 255};
-            const backgroundColor = {r: 0, g: 0, b: 0, a: 0};
+          try {
+            const currentTime = Date.now();
             
-            const mask = bodyPix.toMask(segmentation, foregroundColor, backgroundColor);
+            // Update glitch state
+            updateGlitchState(currentTime);
             
-            // Draw the mask with transparency
-            const opacity = 0.5;
-            const maskBlurAmount = 0;
+            // Get segmentation
+            const segmentation = await net.segmentPerson(video, {
+              flipHorizontal: true,
+              internalResolution: 'medium',
+              segmentationThreshold: 0.7,
+            });
             
-            bodyPix.drawMask(canvas, video, mask, opacity, maskBlurAmount);
+            // Clear canvas with transparent background
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Calculate scaling to fill screen while maintaining aspect ratio
+            const videoAspect = video.videoWidth / video.videoHeight;
+            const canvasAspect = canvas.width / canvas.height;
+            
+            let drawWidth, drawHeight, offsetX, offsetY;
+            
+            if (videoAspect > canvasAspect) {
+              // Video is wider - fit to height
+              drawHeight = canvas.height;
+              drawWidth = drawHeight * videoAspect;
+              offsetX = (canvas.width - drawWidth) / 2;
+              offsetY = 0;
+            } else {
+              // Video is taller - fit to width  
+              drawWidth = canvas.width;
+              drawHeight = drawWidth / videoAspect;
+              offsetX = 0;
+              offsetY = (canvas.height - drawHeight) / 2;
+            }
+            
+            // Store video rectangle info for segmentation mapping
+            const videoRect = {
+              offsetX: offsetX,
+              offsetY: offsetY,
+              width: drawWidth,
+              height: drawHeight
+            };
+            
+            // First: Draw video WITHOUT any transforms for segmentation
+            ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            
+            // Apply segmentation mask to make background transparent
+            const maskedImageData = applySegmentationMask(imageData, segmentation, videoRect);
+            
+            // Clear canvas for final render
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Put the masked image data on temp canvas first
+            tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+            tempCtx.putImageData(maskedImageData, 0, 0);
+            
+            // Apply glitch transform for final render (this transforms the segmented result)
+            const wasTransformed = applyGlitchTransform(ctx, videoRect, currentTime);
+            
+            // Draw the temp canvas with transforms applied
+            ctx.drawImage(tempCanvas, 0, 0);
+            
+            // Restore transform
+            restoreGlitchTransform(ctx, wasTransformed);
+            
+            // Show glitch indicator in status (for debugging)
+            if (glitchState.isGlitching) {
+              status.style.color = '#ff0080'; // Pink when glitching
+            } else {
+              status.style.color = '#00ffff'; // Cyan normally
+            }
+            
+          } catch (error) {
+            console.error('Frame rendering error:', error);
           }
 
           requestAnimationFrame(renderFrame);
@@ -116,6 +472,12 @@
       }
       main();
     });
+    
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+    });
   </script>
 </body>
 </html>
+
