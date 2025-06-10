@@ -144,6 +144,11 @@
     // Create temporary canvas for transform operations
     let tempCanvas = null;
     let tempCtx = null;
+    
+    // Frame buffer for "skipping record" effect
+    let frameBuffer = [];
+    let frameBufferSize = 12; // Store last ~400ms of frames (at 30fps)
+    let replayFrameIndex = 0;
 
     // Set up control event listeners
     speedSlider.addEventListener('input', (e) => {
@@ -169,6 +174,9 @@
       }
       tempCanvas.width = canvas.width;
       tempCanvas.height = canvas.height;
+      
+      // Clear frame buffer when resizing
+      frameBuffer = [];
     }
 
     async function setupCamera() {
@@ -233,6 +241,40 @@
       return imageData;
     }
 
+    function captureCurrentFrame(maskedImageData) {
+      // Create a canvas to store this processed frame (with segmentation applied)
+      const frameCanvas = document.createElement('canvas');
+      frameCanvas.width = canvas.width;
+      frameCanvas.height = canvas.height;
+      const frameCtx = frameCanvas.getContext('2d');
+      
+      // Store the already-segmented frame (background removed)
+      frameCtx.putImageData(maskedImageData, 0, 0);
+      
+      // Add to buffer
+      frameBuffer.push(frameCanvas);
+      
+      // Keep buffer size limited
+      if (frameBuffer.length > frameBufferSize) {
+        frameBuffer.shift(); // Remove oldest frame
+      }
+    }
+
+    function getReplayFrame() {
+      if (frameBuffer.length === 0) return null;
+      
+      // Cycle through the buffered frames for skipping effect
+      const frame = frameBuffer[replayFrameIndex];
+      replayFrameIndex++;
+      
+      // Loop back to create stuttering
+      if (replayFrameIndex >= frameBuffer.length) {
+        replayFrameIndex = Math.max(0, frameBuffer.length - 6); // Go back 6 frames
+      }
+      
+      return frame;
+    }
+
 
 
     function updateGlitchState(currentTime) {
@@ -256,11 +298,19 @@
             console.log(`Repeating glitch: ${glitchState.glitchType} (${glitchState.repeatCount}/${glitchState.maxRepeats})`);
           } else {
             // Choose new random glitch type
-            const glitchTypes = ['flipH', 'flipV', 'flipBoth', 'mirror', 'offset'];
+            const glitchTypes = ['flipH', 'flipV', 'flipBoth', 'mirror', 'offset', 'skip'];
             glitchState.glitchType = glitchTypes[Math.floor(Math.random() * glitchTypes.length)];
             glitchState.lastGlitchType = glitchState.glitchType;
             glitchState.repeatCount = 1;
-            glitchState.maxRepeats = 1 + Math.floor(Math.random() * 4); // 1-4 repeats
+            
+            // Skip glitches should repeat more (2-6 times for stuttering effect)
+            if (glitchState.glitchType === 'skip') {
+              glitchState.maxRepeats = 2 + Math.floor(Math.random() * 5); // 2-6 repeats
+              replayFrameIndex = Math.max(0, frameBuffer.length - 8); // Start 8 frames back
+            } else {
+              glitchState.maxRepeats = 1 + Math.floor(Math.random() * 4); // 1-4 repeats
+            }
+            
             console.log(`New glitch: ${glitchState.glitchType} (will repeat ${glitchState.maxRepeats} times)`);
           }
         }
@@ -305,7 +355,7 @@
       // Save the current transform
       ctx.save();
 
-      console.log(`Applying glitch transform: ${glitchState.glitchType}`);
+      console.log(`Applying glitch transform: ${glitchState.glitchType}`); 
       
       switch (glitchState.glitchType) {
         case 'flipH':
@@ -341,6 +391,14 @@
           const offsetX = (Math.random() - 0.5) * 40;
           const offsetY = (Math.random() - 0.5) * 20;
           ctx.translate(offsetX, offsetY);
+          break;
+          
+        case 'skip':
+          // Skip/repeat effect - no transform needed, handled in frame logic
+          // But we can add a slight jitter for extra effect
+          const jitterX = (Math.random() - 0.5) * 6;
+          const jitterY = (Math.random() - 0.5) * 6;
+          ctx.translate(jitterX, jitterY);
           break;
       }
       
@@ -419,19 +477,37 @@
               height: drawHeight
             };
             
-            // First: Draw video WITHOUT any transforms for segmentation
-            ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            let currentFrameCanvas = null;
             
-            // Apply segmentation mask to make background transparent
-            const maskedImageData = applySegmentationMask(imageData, segmentation, videoRect);
+            // Check if we should use a replay frame (skipping record effect)
+            if (glitchState.isGlitching && glitchState.glitchType === 'skip') {
+              currentFrameCanvas = getReplayFrame();
+            }
             
-            // Clear canvas for final render
+            if (currentFrameCanvas) {
+              // Use buffered frame (skip effect)
+              tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+              tempCtx.drawImage(currentFrameCanvas, 0, 0);
+            } else {
+              // Normal processing: draw current video frame
+              ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
+              const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              
+              // Apply segmentation mask to make background transparent
+              const maskedImageData = applySegmentationMask(imageData, segmentation, videoRect);
+              
+              // Put the masked image data on temp canvas
+              tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+              tempCtx.putImageData(maskedImageData, 0, 0);
+              
+              // Capture this processed frame for potential future replay (but not during skipping)
+              if (!glitchState.isGlitching || glitchState.glitchType !== 'skip') {
+                captureCurrentFrame(maskedImageData);
+              }
+            }
+            
+            // Clear main canvas for final render
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Put the masked image data on temp canvas first
-            tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
-            tempCtx.putImageData(maskedImageData, 0, 0);
             
             // Apply glitch transform for final render (this transforms the segmented result)
             const wasTransformed = applyGlitchTransform(ctx, videoRect, currentTime);
