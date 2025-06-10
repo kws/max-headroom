@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Max Headroom WebGL Background</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Orbitron', monospace;
+      height: 100vh;
+      overflow: hidden;
+      background: #000;
+      color: #00ffff;
+    }
+    
+    max-headroom-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+    }
+    
+    .content {
+      position: relative;
+      z-index: 1;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+    }
+    
+    .title {
+      font-size: clamp(2rem, 8vw, 6rem);
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      text-shadow: 
+        0 0 10px #00ffff,
+        0 0 20px #00ffff,
+        0 0 30px #00ffff,
+        0 0 40px #ff00ff;
+      margin-bottom: 1rem;
+      animation: textGlitch 2s infinite alternate;
+    }
+    
+    .subtitle {
+      font-size: clamp(0.8rem, 3vw, 1.5rem);
+      font-weight: 400;
+      color: #ff00ff;
+      text-shadow: 0 0 10px #ff00ff;
+      margin-bottom: 2rem;
+      opacity: 0.8;
+    }
+    
+    .description {
+      max-width: 600px;
+      font-size: clamp(0.7rem, 2vw, 1rem);
+      line-height: 1.6;
+      color: #00ff88;
+      text-shadow: 0 0 5px #00ff88;
+      margin-bottom: 2rem;
+    }
+    
+    .controls {
+      background: rgba(0, 255, 255, 0.1);
+      border: 1px solid #00ffff;
+      border-radius: 10px;
+      padding: 1rem 2rem;
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+    }
+    
+    .controls p {
+      font-size: 0.9rem;
+      color: #ffff00;
+      text-shadow: 0 0 5px #ffff00;
+    }
+    
+    @keyframes textGlitch {
+      0% {
+        text-shadow: 
+          0 0 10px #00ffff,
+          0 0 20px #00ffff,
+          0 0 30px #00ffff,
+          0 0 40px #ff00ff;
+        transform: translateX(0);
+      }
+      25% {
+        text-shadow: 
+          2px 0 10px #ff00ff,
+          -2px 0 20px #00ffff,
+          0 0 30px #00ff88,
+          0 0 40px #ffff00;
+        transform: translateX(2px);
+      }
+      50% {
+        text-shadow: 
+          -1px 0 10px #00ff88,
+          1px 0 20px #ff00ff,
+          0 0 30px #00ffff,
+          0 0 40px #ff8800;
+        transform: translateX(-1px);
+      }
+      75% {
+        text-shadow: 
+          1px 0 10px #ffff00,
+          -1px 0 20px #ff8800,
+          0 0 30px #ff00ff,
+          0 0 40px #00ffff;
+        transform: translateX(1px);
+      }
+      100% {
+        text-shadow: 
+          0 0 10px #00ffff,
+          0 0 20px #00ffff,
+          0 0 30px #00ffff,
+          0 0 40px #ff00ff;
+        transform: translateX(0);
+      }
+    }
+    
+    .scanline {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #00ffff, transparent);
+      animation: scanlineMove 3s linear infinite;
+      z-index: 2;
+      opacity: 0.7;
+    }
+    
+    @keyframes scanlineMove {
+      0% { top: -2px; }
+      100% { top: 100vh; }
+    }
+  </style>
+</head>
+<body>
+  <max-headroom-bg></max-headroom-bg>
+  
+  <div class="scanline"></div>
+  
+  <div class="content">
+    <h1 class="title">Max Headroom</h1>
+    <p class="subtitle">WebGL Cyberpunk Background</p>
+    <div class="description">
+      <p>Experience the iconic 80s digital aesthetic with this WebGL-powered background component. 
+      Featuring animated geometric patterns, neon colors, digital distortion effects, and 
+      interactive mouse ripples that bring the classic Max Headroom visual style to life.</p>
+    </div>
+    <div class="controls">
+      <p>• Move your mouse to create interactive ripples</p>
+      <p>• Resize the window to see responsive scaling</p>
+      <p>• Built as a reusable web component</p>
+    </div>
+  </div>
+  
+  <script type="module" src="/src/max-headroom.js"></script>
+</body>
+</html> 

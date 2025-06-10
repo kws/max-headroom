@@ -1,0 +1,20 @@
+{
+  "name": "max-headroom-webgl",
+  "version": "1.0.0",
+  "description": "A WebGL-powered Max Headroom style background web component",
+  "type": "module",
+  "main": "dist/max-headroom.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "serve": "vite preview"
+  },
+  "keywords": ["webgl", "max-headroom", "web-component", "80s", "cyberpunk"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "vite": "^5.0.0"
+  },
+  "dependencies": {}
+} 
