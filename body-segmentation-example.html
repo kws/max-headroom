@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Body Segmentation Demo</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+    video, canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    #status {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+  <div id="status">Loading...</div>
+  <video id="video" autoplay muted playsinline width="640" height="480"></video>
+  <canvas id="output" width="640" height="480"></canvas>
+
+  <!-- Load TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <!-- Load BodyPix directly -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.0.0/dist/body-pix.min.js"></script>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('output');
+    const ctx = canvas.getContext('2d');
+    const status = document.getElementById('status');
+
+    async function setupCamera() {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 480 },
+        audio: false,
+      });
+      video.srcObject = stream;
+      return new Promise((resolve) => {
+        video.onloadedmetadata = () => {
+          resolve(video);
+        };
+      });
+    }
+
+    async function main() {
+      try {
+        status.innerText = 'Setting up camera...';
+        await setupCamera();
+        video.play();
+        
+        status.innerText = 'Loading BodyPix model...';
+        
+        // Load BodyPix directly
+        const net = await bodyPix.load({
+          architecture: 'MobileNetV1',
+          outputStride: 16,
+          multiplier: 0.75,
+          quantBytes: 2,
+        });
+        
+        status.innerText = 'Model loaded! Segmenting...';
+
+        async function renderFrame() {
+          const segmentation = await net.segmentPerson(video);
+          
+          // Clear canvas
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          
+          // Draw original video
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          
+          if (segmentation) {
+            // Create mask using BodyPix utilities
+            const foregroundColor = {r: 0, g: 255, b: 0, a: 255};
+            const backgroundColor = {r: 0, g: 0, b: 0, a: 0};
+            
+            const mask = bodyPix.toMask(segmentation, foregroundColor, backgroundColor);
+            
+            // Draw the mask with transparency
+            const opacity = 0.5;
+            const maskBlurAmount = 0;
+            
+            bodyPix.drawMask(canvas, video, mask, opacity, maskBlurAmount);
+          }
+
+          requestAnimationFrame(renderFrame);
+        }
+
+        renderFrame();
+        
+      } catch (error) {
+        status.innerText = 'Error: ' + error.message;
+        console.error('Error:', error);
+      }
+    }
+
+    // Start when page loads
+    window.addEventListener('load', () => {
+      if (typeof bodyPix === 'undefined') {
+        status.innerText = 'BodyPix library not loaded';
+        return;
+      }
+      main();
+    });
+  </script>
+</body>
+</html>
