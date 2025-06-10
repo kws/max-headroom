@@ -43,18 +43,35 @@
       object-fit: cover;
     }
     
-    #status {
+    #status-container {
       position: absolute;
+      display: flex;
+      justify-content: center;
       top: 10px;
       left: 10px;
-      background: rgba(0,0,0,0.8);
-      color: #00ffff;
+      min-width: 20em;
+      background: 
+        repeating-linear-gradient(
+          45deg,
+          #ffbf00 0px,
+          #ffbf00 35px,
+          #000000 0px,
+          #000000 70px
+        );
+      color: #000000;
       padding: 15px;
       border-radius: 8px;
       z-index: 100;
       font-family: 'Courier New', monospace;
-      border: 1px solid #00ffff;
-      text-shadow: 0 0 5px #00ffff;
+      border: 2px solid #ffbf00;
+      font-weight: bold;
+    }
+    #status {
+        background: #FFF;
+        padding: 0.2em 0.4em;
+        font-family: Arial, Helvetica, sans-serif;
+        text-transform: uppercase;
+        text-align: center;
     }
     
     #controls {
@@ -68,6 +85,7 @@
       z-index: 100;
       font-family: 'Courier New', monospace;
       border: 1px solid #00ffff;
+      display: none;
     }
     
     #controls label {
@@ -95,7 +113,9 @@
       line-spacing="60.0">
     </max-headroom-bg>
     
-    <div id="status">Loading...</div>
+    <div id="status-container">
+      <div id="status">Loading...</div>
+    </div>
     
     <div id="controls">
       <label>Background Speed: <input type="range" id="speedSlider" min="0.1" max="2.0" step="0.1" value="0.5"></label>
@@ -430,7 +450,7 @@
           quantBytes: 2,
         });
         
-        status.innerText = 'Max Headroom Active! Segmenting...';
+        status.innerText = 'MAX HEADROOM';
 
         async function renderFrame() {
           try {
@@ -522,7 +542,7 @@
             if (glitchState.isGlitching) {
               status.style.color = '#ff0080'; // Pink when glitching
             } else {
-              status.style.color = '#00ffff'; // Cyan normally
+              status.style.color = '#000'; // Cyan normally
             }
             
           } catch (error) {
