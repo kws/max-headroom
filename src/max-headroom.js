@@ -80,7 +80,7 @@ class MaxHeadroomBackground extends HTMLElement {
       // Set initial configuration from attributes
       const config = {
         speed: parseFloat(this.getAttribute('speed') || '0.3'),
-        fisheyeStrength: parseFloat(this.getAttribute('fisheye-strength') || '0.05'),
+        fisheyeStrength: parseFloat(this.getAttribute('fisheye-strength') || '0'),
         cameraDistance: parseFloat(this.getAttribute('camera-distance') || '0.5'),
         lineWidth: parseFloat(this.getAttribute('line-width') || '0.2'),
         lineSpacing: parseFloat(this.getAttribute('line-spacing') || '80.0')

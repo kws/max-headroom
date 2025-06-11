@@ -443,13 +443,16 @@ export class MaxHeadroomRenderer {
     this.currentRotation.y += this.rotationY;
     this.currentRotation.z += this.rotationZ;
     
-    // FIRST PASS: Render cube scene to framebuffer
-    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.framebuffer);
+    // Check if fisheye effect is needed
+    const useFisheye = this.config.fisheyeStrength > 0;
+    
+    // Choose render target: framebuffer for fisheye, direct to screen for no fisheye
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, useFisheye ? this.framebuffer : null);
     this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     
     this.gl.useProgram(this.program);
     
-    // Clear the framebuffer
+    // Clear the render target
     this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
     this.gl.clearDepth(1.0);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
@@ -503,42 +506,44 @@ export class MaxHeadroomRenderer {
     this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.buffers.indices);
     this.gl.drawElements(this.gl.TRIANGLES, 36, this.gl.UNSIGNED_SHORT, 0);
 
-    // SECOND PASS: Render fisheye effect to screen
-    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
-    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-    
-    this.gl.useProgram(this.fisheyeProgram);
-    
-    // Disable depth testing for full-screen quad
-    this.gl.disable(this.gl.DEPTH_TEST);
-    this.gl.disable(this.gl.CULL_FACE);
-    
-    // Clear the screen
-    this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-    
-    // Bind the rendered texture
-    this.gl.activeTexture(this.gl.TEXTURE0);
-    this.gl.bindTexture(this.gl.TEXTURE_2D, this.colorTexture);
-    this.gl.uniform1i(this.fisheyeUniforms.u_texture, 0);
-    
-    // Set fisheye uniforms
-    this.gl.uniform2f(this.fisheyeUniforms.u_resolution, this.canvas.width, this.canvas.height);
-    this.gl.uniform1f(this.fisheyeUniforms.u_time, currentTime);
-    this.gl.uniform1f(this.fisheyeUniforms.u_strength, this.config.fisheyeStrength);
-    
-    // Bind quad position buffer
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.quadPosition);
-    this.gl.vertexAttribPointer(this.fisheyeAttributeLocations.a_position, 2, this.gl.FLOAT, false, 0, 0);
-    this.gl.enableVertexAttribArray(this.fisheyeAttributeLocations.a_position);
-    
-    // Bind quad texture coordinate buffer
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.quadTexCoord);
-    this.gl.vertexAttribPointer(this.fisheyeAttributeLocations.a_texCoord, 2, this.gl.FLOAT, false, 0, 0);
-    this.gl.enableVertexAttribArray(this.fisheyeAttributeLocations.a_texCoord);
-    
-    // Draw the full-screen quad
-    this.gl.drawArrays(this.gl.TRIANGLE_FAN, 0, 4);
+    // SECOND PASS: Apply fisheye effect (only if needed)
+    if (useFisheye) {
+      this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+      this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+      
+      this.gl.useProgram(this.fisheyeProgram);
+      
+      // Disable depth testing for full-screen quad
+      this.gl.disable(this.gl.DEPTH_TEST);
+      this.gl.disable(this.gl.CULL_FACE);
+      
+      // Clear the screen
+      this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
+      this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+      
+      // Bind the rendered texture
+      this.gl.activeTexture(this.gl.TEXTURE0);
+      this.gl.bindTexture(this.gl.TEXTURE_2D, this.colorTexture);
+      this.gl.uniform1i(this.fisheyeUniforms.u_texture, 0);
+      
+      // Set fisheye uniforms
+      this.gl.uniform2f(this.fisheyeUniforms.u_resolution, this.canvas.width, this.canvas.height);
+      this.gl.uniform1f(this.fisheyeUniforms.u_time, currentTime);
+      this.gl.uniform1f(this.fisheyeUniforms.u_strength, this.config.fisheyeStrength);
+      
+      // Bind quad position buffer
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.quadPosition);
+      this.gl.vertexAttribPointer(this.fisheyeAttributeLocations.a_position, 2, this.gl.FLOAT, false, 0, 0);
+      this.gl.enableVertexAttribArray(this.fisheyeAttributeLocations.a_position);
+      
+      // Bind quad texture coordinate buffer
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers.quadTexCoord);
+      this.gl.vertexAttribPointer(this.fisheyeAttributeLocations.a_texCoord, 2, this.gl.FLOAT, false, 0, 0);
+      this.gl.enableVertexAttribArray(this.fisheyeAttributeLocations.a_texCoord);
+      
+      // Draw the full-screen quad
+      this.gl.drawArrays(this.gl.TRIANGLE_FAN, 0, 4);
+    }
     
     this.animationId = requestAnimationFrame(() => this.render());
   }
