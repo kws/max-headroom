@@ -5,7 +5,11 @@ export default defineConfig({
     lib: {
       entry: 'src/max-headroom.js',
       name: 'MaxHeadroom',
-      fileName: 'max-headroom',
+      fileName: (format) => {
+        if (format === 'umd') return 'max-headroom.umd.js'
+        if (format === 'es') return 'max-headroom.esm.js'
+        return `max-headroom.${format}.js`
+      },
       formats: ['es', 'umd']
     },
     rollupOptions: {
@@ -14,6 +18,7 @@ export default defineConfig({
       }
     }
   },
+  assetsInclude: ['**/*.glsl'],
   server: {
     port: 3000,
     open: true
