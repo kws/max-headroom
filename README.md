@@ -6,7 +6,6 @@ A collection of WebGL-powered web components that recreate the iconic 80s cyberp
 
 🎮 **WebGL-Powered**: Smooth 60fps animations using custom fragment shaders  
 🎨 **Authentic 80s Aesthetic**: Neon colors, digital grids, and glitch effects  
-🖱️ **Interactive**: Mouse movement creates ripple effects  
 📱 **Responsive**: Automatically adapts to any screen size  
 🧩 **Web Components**: Easy integration into any web project  
 ⚡ **Vite-Packed**: Optimized build with modern tooling  
@@ -58,7 +57,7 @@ pnpm run build:umd-overlay   # Video overlay component as UMD
 #### Basic Usage
 ```html
 <!-- Include the component -->
-<script type="module" src="dist/max-headroom.esm.js"></script>
+<script type="module" src="https://unpkg.com/webgl-max-headroom/dist/max-headroom.esm.js"></script>
 
 <!-- Add to your HTML -->
 <max-headroom-bg></max-headroom-bg>
@@ -102,7 +101,7 @@ pnpm run build:umd-overlay   # Video overlay component as UMD
 #### Basic Usage
 ```html
 <!-- Include the component -->
-<script type="module" src="dist/max-headroom-video-overlay.esm.js"></script>
+<script type="module" src="https://unpkg.com/webgl-max-headroom/dist/max-headroom-video-overlay.esm.js"></script>
 
 <!-- Add to your HTML -->
 <max-headroom-video-overlay glitch-frequency="3"></max-headroom-video-overlay>
@@ -145,19 +144,19 @@ pnpm run build:umd-overlay   # Video overlay component as UMD
 ### UMD Builds (for direct inclusion)
 ```html
 <!-- Background component -->
-<script src="dist/max-headroom-bg.umd.js"></script>
+<script src="https://unpkg.com/webgl-max-headroom/dist/max-headroom-bg.umd.js"></script>
 
 <!-- Video overlay component (requires TensorFlow.js) -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix"></script>
-<script src="dist/max-headroom-video-overlay.umd.js"></script>
+<script src="https://unpkg.com/webgl-max-headroom/dist/max-headroom-video-overlay.umd.js"></script>
 ```
 
 ### ES Module Builds
 ```html
 <script type="module">
-  import 'dist/max-headroom-bg.esm.js';
-  import 'dist/max-headroom-video-overlay.esm.js';
+  import 'https://unpkg.com/webgl-max-headroom/dist/max-headroom-bg.esm.js';
+  import 'https://unpkg.com/webgl-max-headroom/dist/max-headroom-video-overlay.esm.js';
 </script>
 ```
 
