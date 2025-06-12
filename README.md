@@ -146,9 +146,11 @@ pnpm run build:umd-overlay   # Video overlay component as UMD
 <!-- Background component -->
 <script src="https://unpkg.com/webgl-max-headroom/dist/max-headroom-bg.umd.js"></script>
 
-<!-- Video overlay component (requires TensorFlow.js) -->
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix"></script>
+<!-- Video overlay component (requires TensorFlow.js and MediaPipe) -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-segmentation"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation"></script>
 <script src="https://unpkg.com/webgl-max-headroom/dist/max-headroom-video-overlay.umd.js"></script>
 ```
 
@@ -168,7 +170,7 @@ pnpm run build:umd-overlay   # Video overlay component as UMD
 - **Fisheye Distortion**: Optional camera lens distortion effect
 
 ### Video Overlay Component
-- **Real-time Person Segmentation**: AI-powered background removal
+- **Real-time Person Segmentation**: AI-powered background removal using MediaPipe SelfieSegmentation
 - **Max Headroom Glitch Effects**: Digital artifacts and distortions
 
 ## 🗂️ Project Structure
@@ -199,8 +201,10 @@ src/
 ## 🤝 Dependencies
 
 ### Runtime Dependencies
-- `@tensorflow/tfjs` - TensorFlow.js for machine learning
-- `@tensorflow-models/body-pix` - Person segmentation model
+- `@tensorflow/tfjs-core` - TensorFlow.js core for machine learning
+- `@tensorflow/tfjs-backend-webgl` - WebGL backend for TensorFlow.js
+- `@tensorflow-models/body-segmentation` - Body segmentation API
+- `@mediapipe/selfie_segmentation` - MediaPipe SelfieSegmentation model
 
 ### Development Dependencies
 - `vite` - Build tool and development server

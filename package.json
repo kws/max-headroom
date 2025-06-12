@@ -14,7 +14,7 @@
     "preview": "vite preview",
     "serve": "vite preview"
   },
-  "keywords": ["webgl", "max-headroom", "web-components", "video-overlay", "tensorflow", "80s", "cyberpunk", "retro", "glitch", "ai", "machine-learning", "body-pix", "segmentation", "shaders", "canvas", "vite", "camera", "real-time"],
+  "keywords": ["webgl", "max-headroom", "web-components", "video-overlay", "tensorflow", "80s", "cyberpunk", "retro", "glitch", "ai", "machine-learning", "mediapipe", "selfie-segmentation", "body-segmentation", "shaders", "canvas", "vite", "camera", "real-time"],
   "author": "Kaj Wik Siebert",
   "license": "MIT",
   "repository": {
@@ -25,7 +25,9 @@
     "vite": "^5.0.0"
   },
   "dependencies": {
-    "@tensorflow/tfjs": "^4.15.0",
-    "@tensorflow-models/body-pix": "^2.2.1"
+    "@tensorflow/tfjs-core": "^4.15.0",
+    "@tensorflow/tfjs-backend-webgl": "^4.15.0",
+    "@tensorflow-models/body-segmentation": "^1.0.2",
+    "@mediapipe/selfie_segmentation": "^0.1.1675465747"
   }
 } 

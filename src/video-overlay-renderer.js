@@ -3,7 +3,7 @@ export class VideoOverlayRenderer {
     this.video = video;
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { willReadFrequently: true });
-    this.model = null;
+    this.segmenter = null;
     this.isRunning = false;
     
     // Configuration
@@ -60,29 +60,42 @@ export class VideoOverlayRenderer {
   }
   
   async loadModel() {
-    this.updateStatus('Loading BodyPix model...');
+    this.updateStatus('Loading MediaPipe SelfieSegmentation model...');
     
     try {
-      // Dynamically import TensorFlow.js and BodyPix
-      const [tf, bodyPix] = await Promise.all([
-        import('@tensorflow/tfjs'),
-        import('@tensorflow-models/body-pix')
+      // Dynamically import TensorFlow.js core, WebGL backend, and MediaPipe body segmentation
+      const [tfCore, tfBackendWebgl, bodySegmentation] = await Promise.all([
+        import('@tensorflow/tfjs-core'),
+        import('@tensorflow/tfjs-backend-webgl'),
+        import('@tensorflow-models/body-segmentation')
       ]);
       
-      // Initialize TensorFlow backend if needed
-      await tf.ready();
+      // Also import the MediaPipe backend
+      await import('@mediapipe/selfie_segmentation');
       
-      this.model = await bodyPix.load({
-        architecture: 'MobileNetV1',
-        outputStride: 16,
-        multiplier: 0.75,
-        quantBytes: 2,
-      });
+      // Register the WebGL backend
+      tfCore.registerBackend('webgl', () => new tfBackendWebgl.WebGLBackend());
+      
+      // Set the backend and wait for it to be ready
+      await tfCore.setBackend('webgl');
+      await tfCore.ready();
+      
+      this.updateStatus('Creating segmenter...');
+      
+      // Create the segmenter with MediaPipe SelfieSegmentation
+      const model = bodySegmentation.SupportedModels.MediaPipeSelfieSegmentation;
+      const segmenterConfig = {
+        runtime: 'mediapipe',
+        modelType: 'general', // 'general' for higher accuracy, 'landscape' for speed
+        solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation'
+      };
+      
+      this.segmenter = await bodySegmentation.createSegmenter(model, segmenterConfig);
       
       this.updateStatus('Model loaded');
     } catch (error) {
       this.updateStatus('Failed to load model');
-      console.error('Error loading TensorFlow.js or BodyPix:', error);
+      console.error('Error loading MediaPipe SelfieSegmentation:', error);
       throw error;
     }
   }
@@ -106,12 +119,12 @@ export class VideoOverlayRenderer {
   
   destroy() {
     this.stop();
-    this.model = null;
+    this.segmenter = null;
     this.frameBuffer = [];
   }
   
   async renderFrame() {
-    if (!this.isRunning || !this.model) return;
+    if (!this.isRunning || !this.segmenter) return;
     
     try {
       const currentTime = Date.now();
@@ -119,12 +132,9 @@ export class VideoOverlayRenderer {
       // Update glitch state
       this.updateGlitchState(currentTime);
       
-      // Get segmentation
-      const segmentation = await this.model.segmentPerson(this.video, {
-        flipHorizontal: true,
-        internalResolution: 'medium',
-        segmentationThreshold: 0.7,
-      });
+      // Get segmentation using MediaPipe
+      const segmentations = await this.segmenter.segmentPeople(this.video);
+      const segmentation = segmentations[0]; // MediaPipe returns array with single segmentation
       
       // Clear canvas
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -149,7 +159,7 @@ export class VideoOverlayRenderer {
         const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
         
         // Apply segmentation mask
-        const maskedImageData = this.applySegmentationMask(imageData, segmentation, videoRect);
+        const maskedImageData = await this.applySegmentationMask(imageData, segmentation, videoRect);
         
         // Put the masked image data on temp canvas
         this.tempCtx.clearRect(0, 0, this.tempCanvas.width, this.tempCanvas.height);
@@ -203,14 +213,17 @@ export class VideoOverlayRenderer {
     return { offsetX, offsetY, width: drawWidth, height: drawHeight };
   }
   
-  applySegmentationMask(imageData, segmentation, videoRect) {
+  async applySegmentationMask(imageData, segmentation, videoRect) {
     const data = imageData.data;
-    const segmentationData = segmentation.data;
-    const segWidth = segmentation.width;
-    const segHeight = segmentation.height;
     
-    const scaleX = videoRect.width / segWidth;
-    const scaleY = videoRect.height / segHeight;
+    // Get the segmentation mask as ImageData
+    const maskImageData = await segmentation.mask.toImageData();
+    const maskData = maskImageData.data;
+    const maskWidth = maskImageData.width;
+    const maskHeight = maskImageData.height;
+    
+    const scaleX = videoRect.width / maskWidth;
+    const scaleY = videoRect.height / maskHeight;
     
     for (let y = 0; y < imageData.height; y++) {
       for (let x = 0; x < imageData.width; x++) {
@@ -221,13 +234,18 @@ export class VideoOverlayRenderer {
           
           const videoX = x - videoRect.offsetX;
           const videoY = y - videoRect.offsetY;
-          const segX = Math.floor(videoX / scaleX);
-          const segY = Math.floor(videoY / scaleY);
+          const maskX = Math.floor(videoX / scaleX);
+          const maskY = Math.floor(videoY / scaleY);
           
-          if (segX >= 0 && segX < segWidth && segY >= 0 && segY < segHeight) {
-            const segIndex = segY * segWidth + segX;
+          if (maskX >= 0 && maskX < maskWidth && maskY >= 0 && maskY < maskHeight) {
+            const maskIndex = (maskY * maskWidth + maskX) * 4;
             
-            if (segmentationData[segIndex] === 0) {
+            // MediaPipe uses alpha channel for segmentation probability
+            // Values closer to 255 indicate higher probability of being a person
+            const segmentationProbability = maskData[maskIndex + 3];
+            
+            // Apply threshold - if probability is low, make transparent
+            if (segmentationProbability < 128) { // threshold of 0.5 (128/255)
               data[pixelIndex + 3] = 0; // Make background transparent
             }
           }

@@ -48,12 +48,14 @@ export default defineConfig(({ command, mode }) => {
         },
         rollupOptions: {
           ...commonRollupOptions,
-          external: ['@tensorflow/tfjs', '@tensorflow-models/body-pix'],
+          external: ['@tensorflow/tfjs-core', '@tensorflow/tfjs-backend-webgl', '@tensorflow-models/body-segmentation', '@mediapipe/selfie_segmentation'],
           output: {
             ...commonRollupOptions.output,
             globals: {
-              '@tensorflow/tfjs': 'tf',
-              '@tensorflow-models/body-pix': 'bodyPix'
+              '@tensorflow/tfjs-core': 'tf',
+              '@tensorflow/tfjs-backend-webgl': 'tfBackendWebgl',
+              '@tensorflow-models/body-segmentation': 'bodySegmentation',
+              '@mediapipe/selfie_segmentation': 'SelfieSegmentation'
             }
           }
         }
@@ -77,7 +79,7 @@ export default defineConfig(({ command, mode }) => {
       },
       rollupOptions: {
         ...commonRollupOptions,
-        external: ['@tensorflow/tfjs', '@tensorflow-models/body-pix']
+        external: ['@tensorflow/tfjs-core', '@tensorflow/tfjs-backend-webgl', '@tensorflow-models/body-segmentation', '@mediapipe/selfie_segmentation']
       }
     },
     assetsInclude: ['**/*.glsl'],
