@@ -145,7 +145,7 @@ pnpm run build:umd-overlay   # Video overlay component as UMD
 ### UMD Builds (for direct inclusion)
 ```html
 <!-- Background component -->
-<script src="dist/max-headroom.umd.js"></script>
+<script src="dist/max-headroom-bg.umd.js"></script>
 
 <!-- Video overlay component (requires TensorFlow.js) -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
@@ -156,7 +156,7 @@ pnpm run build:umd-overlay   # Video overlay component as UMD
 ### ES Module Builds
 ```html
 <script type="module">
-  import 'dist/max-headroom.esm.js';
+  import 'dist/max-headroom-bg.esm.js';
   import 'dist/max-headroom-video-overlay.esm.js';
 </script>
 ```
@@ -164,18 +164,13 @@ pnpm run build:umd-overlay   # Video overlay component as UMD
 ## 🎨 Visual Effects
 
 ### Background Component
-- **Animated Grid Patterns**: Moving geometric grids with digital distortion
+- **Animated Grid Patterns**: Moving geometric grids
 - **Neon Color Palette**: Authentic cyan, magenta, and green-cyan colors
-- **Scanlines**: Classic CRT monitor effects
-- **Digital Noise**: Random artifacts and glitch effects
-- **Mouse Interaction**: Ripple effects that follow cursor movement
 - **Fisheye Distortion**: Optional camera lens distortion effect
 
 ### Video Overlay Component
 - **Real-time Person Segmentation**: AI-powered background removal
 - **Max Headroom Glitch Effects**: Digital artifacts and distortions
-- **Neon Edge Detection**: Glowing outlines and highlights
-- **Performance Monitoring**: Built-in status reporting
 
 ## 🗂️ Project Structure
 ```

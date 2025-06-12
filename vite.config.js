@@ -20,9 +20,9 @@ export default defineConfig(({ command, mode }) => {
           entry: 'src/webcomponent.js',
           name: 'MaxHeadroom',
           fileName: (format) => {
-            if (format === 'umd') return 'max-headroom.umd.js'
-            if (format === 'es') return 'max-headroom.esm.js'
-            return `max-headroom.${format}.js`
+            if (format === 'umd') return 'max-headroom-bg.umd.js'
+            if (format === 'es') return 'max-headroom-bg.esm.js'
+            return `max-headroom-bg.${format}.js`
           },
           formats: ['es', 'umd']
         },
