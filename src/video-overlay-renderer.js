@@ -1,4 +1,4 @@
-export class BodySegmentationRenderer {
+export class VideoOverlayRenderer {
   constructor(video, canvas, options = {}) {
     this.video = video;
     this.canvas = canvas;
@@ -62,34 +62,31 @@ export class BodySegmentationRenderer {
   async loadModel() {
     this.updateStatus('Loading BodyPix model...');
     
-    // Dynamically load TensorFlow.js and BodyPix if not already loaded
-    if (typeof tf === 'undefined') {
-      await this.loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js');
+    try {
+      // Dynamically import TensorFlow.js and BodyPix
+      const [tf, bodyPix] = await Promise.all([
+        import('@tensorflow/tfjs'),
+        import('@tensorflow-models/body-pix')
+      ]);
+      
+      // Initialize TensorFlow backend if needed
+      await tf.ready();
+      
+      this.model = await bodyPix.load({
+        architecture: 'MobileNetV1',
+        outputStride: 16,
+        multiplier: 0.75,
+        quantBytes: 2,
+      });
+      
+      this.updateStatus('Model loaded');
+    } catch (error) {
+      this.updateStatus('Failed to load model');
+      console.error('Error loading TensorFlow.js or BodyPix:', error);
+      throw error;
     }
-    
-    if (typeof bodyPix === 'undefined') {
-      await this.loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.0.0/dist/body-pix.min.js');
-    }
-    
-    this.model = await bodyPix.load({
-      architecture: 'MobileNetV1',
-      outputStride: 16,
-      multiplier: 0.75,
-      quantBytes: 2,
-    });
-    
-    this.updateStatus('Model loaded');
   }
-  
-  loadScript(src) {
-    return new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = src;
-      script.onload = resolve;
-      script.onerror = reject;
-      document.head.appendChild(script);
-    });
-  }
+
   
   updateStatus(message) {
     if (this.onStatusChange) {

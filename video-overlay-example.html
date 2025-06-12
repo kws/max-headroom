@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Max Headroom Body Segmentation Demo</title>
+  <title>Max Headroom Video Overlay Demo</title>
   <style>
     body {
       margin: 0;
@@ -26,7 +26,7 @@
       z-index: 1;
     }
     
-    body-segmentation {
+    max-headroom-video-overlay {
       position: absolute;
       top: 0;
       left: 0;
@@ -104,11 +104,11 @@
       line-spacing="60.0">
     </max-headroom-bg>
     
-    <!-- Body segmentation component -->
-    <body-segmentation 
-      id="bodySegmentation"
+    <!-- Video overlay component -->
+    <max-headroom-video-overlay 
+      id="videoOverlay"
       glitch-frequency="3">
-    </body-segmentation>
+    </max-headroom-video-overlay>
     
     <div id="status-container">
       <div id="status">Loading...</div>
@@ -122,13 +122,13 @@
   </div>
 
   <!-- Load components -->
-  <script type="module" src="src/max-headroom.js"></script>
-  <script type="module" src="src/body-segmentation.js"></script>
+  <script type="module" src="src/webcomponent.js"></script>
+  <script type="module" src="src/video-overlay-webcomponent.js"></script>
 
   <script>
     const status = document.getElementById('status');
     const background = document.getElementById('background');
-    const bodySegmentation = document.getElementById('bodySegmentation');
+    const videoOverlay = document.getElementById('videoOverlay');
     
     // Control elements
     const speedSlider = document.getElementById('speedSlider');
@@ -145,11 +145,11 @@
     });
     
     glitchSlider.addEventListener('input', (e) => {
-      bodySegmentation.setAttribute('glitch-frequency', e.target.value);
+      videoOverlay.setAttribute('glitch-frequency', e.target.value);
     });
 
-    // Listen for status updates from the body segmentation component
-    bodySegmentation.addEventListener('status-change', (e) => {
+    // Listen for status updates from the video overlay component
+    videoOverlay.addEventListener('status-change', (e) => {
       status.innerText = e.detail.status === 'Ready' ? 'MAX HEADROOM' : e.detail.status;
     });
 

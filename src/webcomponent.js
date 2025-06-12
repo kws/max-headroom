@@ -1,4 +1,4 @@
-import { MaxHeadroomRenderer } from './max-headroom-renderer.js';
+import { MaxHeadroomRenderer } from './renderer.js';
 
 class MaxHeadroomBackground extends HTMLElement {
   constructor() {

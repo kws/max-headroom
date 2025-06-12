@@ -1,6 +1,6 @@
-import { BodySegmentationRenderer } from './body-segmentation-renderer.js';
+import { VideoOverlayRenderer } from './video-overlay-renderer.js';
 
-class BodySegmentation extends HTMLElement {
+class MaxHeadroomVideoOverlay extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
@@ -120,7 +120,7 @@ class BodySegmentation extends HTMLElement {
       await this.setupCamera();
       
       // Create renderer
-      this.renderer = new BodySegmentationRenderer(this.video, this.canvas, {
+      this.renderer = new VideoOverlayRenderer(this.video, this.canvas, {
         glitchFrequency: this.glitchFrequency
       });
       
@@ -134,7 +134,7 @@ class BodySegmentation extends HTMLElement {
       
     } catch (error) {
       this.updateStatus(`Error: ${error.message}`);
-      console.error('Body segmentation initialization error:', error);
+      console.error('Video overlay initialization error:', error);
     }
   }
   
@@ -201,6 +201,6 @@ class BodySegmentation extends HTMLElement {
 }
 
 // Register the custom element
-customElements.define('body-segmentation', BodySegmentation);
+customElements.define('max-headroom-video-overlay', MaxHeadroomVideoOverlay);
 
-export default BodySegmentation; 
+export default MaxHeadroomVideoOverlay; 

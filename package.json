@@ -1,16 +1,20 @@
 {
   "name": "webgl-max-headroom",
   "version": "1.0.0",
-  "description": "A WebGL-powered Max Headroom style background web component",
+  "description": "WebGL-powered Max Headroom style background and video overlay web components",
   "type": "module",
   "main": "dist/max-headroom.js",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run build:es && npm run build:umd",
+    "build:es": "vite build",
+    "build:umd": "npm run build:umd-main && npm run build:umd-overlay",
+    "build:umd-main": "BUILD_TARGET=umd-main vite build",
+    "build:umd-overlay": "BUILD_TARGET=umd-overlay vite build",
     "preview": "vite preview",
     "serve": "vite preview"
   },
-  "keywords": ["webgl", "max-headroom", "web-component", "80s"],
+  "keywords": ["webgl", "max-headroom", "web-component", "video-overlay", "tensorflow", "80s"],
   "author": "Kaj Wik Siebert",
   "license": "MIT",
   "repository": {
@@ -20,5 +24,8 @@
   "devDependencies": {
     "vite": "^5.0.0"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@tensorflow/tfjs": "^4.15.0",
+    "@tensorflow-models/body-pix": "^2.2.1"
+  }
 } 
