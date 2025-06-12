@@ -8,13 +8,15 @@
     "dev": "vite",
     "build": "npm run build:es && npm run build:umd",
     "build:es": "vite build",
-    "build:umd": "npm run build:umd-main && npm run build:umd-overlay",
+    "build:umd": "npm run build:umd-main && npm run build:umd-overlay && npm run build:umd-overlay-mediapipe && npm run build:umd-overlay-bodypix",
     "build:umd-main": "BUILD_TARGET=umd-main vite build",
     "build:umd-overlay": "BUILD_TARGET=umd-overlay vite build",
+    "build:umd-overlay-mediapipe": "BUILD_TARGET=umd-overlay-mediapipe vite build",
+    "build:umd-overlay-bodypix": "BUILD_TARGET=umd-overlay-bodypix vite build",
     "preview": "vite preview",
     "serve": "vite preview"
   },
-  "keywords": ["webgl", "max-headroom", "web-components", "video-overlay", "tensorflow", "80s", "cyberpunk", "retro", "glitch", "ai", "machine-learning", "mediapipe", "selfie-segmentation", "body-segmentation", "shaders", "canvas", "vite", "camera", "real-time"],
+  "keywords": ["webgl", "max-headroom", "web-components", "video-overlay", "tensorflow", "80s", "cyberpunk", "retro", "glitch", "ai", "machine-learning", "mediapipe", "selfie-segmentation", "body-segmentation", "bodypix", "shaders", "canvas", "vite", "camera", "real-time"],
   "author": "Kaj Wik Siebert",
   "license": "MIT",
   "repository": {
@@ -25,8 +27,10 @@
     "vite": "^5.0.0"
   },
   "dependencies": {
+    "@tensorflow/tfjs": "^4.15.0",
     "@tensorflow/tfjs-core": "^4.15.0",
     "@tensorflow/tfjs-backend-webgl": "^4.15.0",
+    "@tensorflow-models/body-pix": "^2.2.1",
     "@tensorflow-models/body-segmentation": "^1.0.2",
     "@mediapipe/selfie_segmentation": "^0.1.1675465747"
   }

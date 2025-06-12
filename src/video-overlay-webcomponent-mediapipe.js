@@ -1,6 +1,6 @@
 import { VideoOverlayRenderer } from './video-overlay-renderer.js';
 
-class MaxHeadroomVideoOverlay extends HTMLElement {
+class MaxHeadroomVideoOverlayMediaPipe extends HTMLElement {
   constructor() {
     super();
     
@@ -207,7 +207,7 @@ class MaxHeadroomVideoOverlay extends HTMLElement {
   }
 }
 
-// Register the custom element (backward compatibility)
-customElements.define('max-headroom-video-overlay', MaxHeadroomVideoOverlay);
+// Register the custom element
+customElements.define('max-headroom-video-overlay-mediapipe', MaxHeadroomVideoOverlayMediaPipe);
 
-export { MaxHeadroomVideoOverlay }; 
+export { MaxHeadroomVideoOverlayMediaPipe }; 

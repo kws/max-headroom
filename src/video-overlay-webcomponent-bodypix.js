@@ -1,6 +1,6 @@
-import { VideoOverlayRenderer } from './video-overlay-renderer.js';
+import { VideoOverlayRendererBodyPix } from './video-overlay-renderer-bodypix.js';
 
-class MaxHeadroomVideoOverlay extends HTMLElement {
+class MaxHeadroomVideoOverlayBodyPix extends HTMLElement {
   constructor() {
     super();
     
@@ -112,9 +112,9 @@ class MaxHeadroomVideoOverlay extends HTMLElement {
   
   async initializeRenderer() {
     try {
-      this.updateStatus('Loading MediaPipe SelfieSegmentation model...');
+      this.updateStatus('Loading BodyPix model...');
       
-      this.renderer = new VideoOverlayRenderer(this.video, this.canvas, {
+      this.renderer = new VideoOverlayRendererBodyPix(this.video, this.canvas, {
         glitchFrequency: this.config.glitchFrequency
       });
       
@@ -207,7 +207,7 @@ class MaxHeadroomVideoOverlay extends HTMLElement {
   }
 }
 
-// Register the custom element (backward compatibility)
-customElements.define('max-headroom-video-overlay', MaxHeadroomVideoOverlay);
+// Register the custom element
+customElements.define('max-headroom-video-overlay-bodypix', MaxHeadroomVideoOverlayBodyPix);
 
-export { MaxHeadroomVideoOverlay }; 
+export { MaxHeadroomVideoOverlayBodyPix }; 

@@ -19,8 +19,14 @@ This package includes two web components:
 ### 1. `<max-headroom-bg>` - Background Component
 Creates the classic Max Headroom animated background with geometric grids and digital effects.
 
-### 2. `<max-headroom-video-overlay>` - Video Overlay Component  
-Applies Max Headroom effects to live camera feed with AI-powered person segmentation.
+### 2. `<max-headroom-video-overlay>` - Video Overlay Component (MediaPipe)
+Applies Max Headroom effects to live camera feed with AI-powered person segmentation using MediaPipe SelfieSegmentation.
+
+### 3. `<max-headroom-video-overlay-mediapipe>` - Video Overlay Component (MediaPipe)
+Explicit MediaPipe version with the same functionality as the main component.
+
+### 4. `<max-headroom-video-overlay-bodypix>` - Video Overlay Component (BodyPix)
+Alternative version using BodyPix for broader compatibility with older systems.
 
 ## 🛠️ Development
 
@@ -96,9 +102,9 @@ pnpm run build:umd-overlay   # Video overlay component as UMD
 | `line-width` | number | `0.2` | Width of the grid lines |
 | `line-spacing` | number | `80.0` | Spacing between grid lines |
 
-### Video Overlay Component (`<max-headroom-video-overlay>`)
+### MediaPipe Video Overlay Components (Recommended)
 
-#### Basic Usage
+#### Main Component (`<max-headroom-video-overlay>`)
 ```html
 <!-- Include the component -->
 <script type="module" src="https://unpkg.com/webgl-max-headroom/dist/max-headroom-video-overlay.esm.js"></script>
@@ -107,7 +113,27 @@ pnpm run build:umd-overlay   # Video overlay component as UMD
 <max-headroom-video-overlay glitch-frequency="3"></max-headroom-video-overlay>
 ```
 
-#### With Custom Settings
+#### Explicit MediaPipe Component (`<max-headroom-video-overlay-mediapipe>`)
+```html
+<!-- Include the component -->
+<script type="module" src="https://unpkg.com/webgl-max-headroom/dist/max-headroom-video-overlay-mediapipe.esm.js"></script>
+
+<!-- Add to your HTML -->
+<max-headroom-video-overlay-mediapipe glitch-frequency="3"></max-headroom-video-overlay-mediapipe>
+```
+
+### BodyPix Video Overlay Component (`<max-headroom-video-overlay-bodypix>`)
+
+#### Basic Usage
+```html
+<!-- Include the component -->
+<script type="module" src="https://unpkg.com/webgl-max-headroom/dist/max-headroom-video-overlay-bodypix.esm.js"></script>
+
+<!-- Add to your HTML -->
+<max-headroom-video-overlay-bodypix glitch-frequency="3"></max-headroom-video-overlay-bodypix>
+```
+
+#### With Custom Settings (All Components)
 ```html
 <max-headroom-video-overlay 
   glitch-frequency="5"
@@ -116,7 +142,7 @@ pnpm run build:umd-overlay   # Video overlay component as UMD
 </max-headroom-video-overlay>
 ```
 
-#### Attributes
+#### Attributes (Both Components)
 
 | Attribute | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -124,7 +150,7 @@ pnpm run build:umd-overlay   # Video overlay component as UMD
 | `width` | number | `window.innerWidth` | Canvas width |
 | `height` | number | `window.innerHeight` | Canvas height |
 
-#### Methods
+#### Methods (Both Components)
 
 | Method | Description |
 |--------|-------------|
@@ -133,7 +159,7 @@ pnpm run build:umd-overlay   # Video overlay component as UMD
 | `setGlitchFrequency(number)` | Change the glitch frequency |
 | `getCurrentStatus()` | Get current status message |
 
-#### Events
+#### Events (Both Components)
 
 | Event | Description |
 |-------|-------------|
@@ -146,19 +172,33 @@ pnpm run build:umd-overlay   # Video overlay component as UMD
 <!-- Background component -->
 <script src="https://unpkg.com/webgl-max-headroom/dist/max-headroom-bg.umd.js"></script>
 
-<!-- Video overlay component (requires TensorFlow.js and MediaPipe) -->
+<!-- MediaPipe video overlay component (requires TensorFlow.js and MediaPipe) -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-segmentation"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation"></script>
 <script src="https://unpkg.com/webgl-max-headroom/dist/max-headroom-video-overlay.umd.js"></script>
+<!-- OR -->
+<script src="https://unpkg.com/webgl-max-headroom/dist/max-headroom-video-overlay-mediapipe.umd.js"></script>
+
+<!-- BodyPix video overlay component (requires TensorFlow.js and BodyPix) -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix"></script>
+<script src="https://unpkg.com/webgl-max-headroom/dist/max-headroom-video-overlay-bodypix.umd.js"></script>
 ```
 
 ### ES Module Builds
 ```html
 <script type="module">
   import 'https://unpkg.com/webgl-max-headroom/dist/max-headroom-bg.esm.js';
+  
+  // MediaPipe versions (recommended):
   import 'https://unpkg.com/webgl-max-headroom/dist/max-headroom-video-overlay.esm.js';
+  // OR
+  // import 'https://unpkg.com/webgl-max-headroom/dist/max-headroom-video-overlay-mediapipe.esm.js';
+  
+  // BodyPix version:
+  // import 'https://unpkg.com/webgl-max-headroom/dist/max-headroom-video-overlay-bodypix.esm.js';
 </script>
 ```
 
@@ -169,22 +209,33 @@ pnpm run build:umd-overlay   # Video overlay component as UMD
 - **Neon Color Palette**: Authentic cyan, magenta, and green-cyan colors
 - **Fisheye Distortion**: Optional camera lens distortion effect
 
-### Video Overlay Component
+### Video Overlay Components
+
+#### MediaPipe Components (Recommended)
 - **Real-time Person Segmentation**: AI-powered background removal using MediaPipe SelfieSegmentation
+- **Better Performance**: Faster inference on most devices
+- **Higher Accuracy**: Optimized for selfie/video call scenarios
+- **Max Headroom Glitch Effects**: Digital artifacts and distortions
+
+#### BodyPix Component
+- **Broader Compatibility**: Works on older systems and browsers
+- **Real-time Person Segmentation**: AI-powered background removal using BodyPix
 - **Max Headroom Glitch Effects**: Digital artifacts and distortions
 
 ## 🗂️ Project Structure
 ```
 src/
-├── webcomponent.js              # Background web component
-├── video-overlay-webcomponent.js # Video overlay web component
-├── renderer.js                  # Background WebGL renderer
-├── video-overlay-renderer.js    # Video overlay WebGL renderer
+├── webcomponent.js                      # Background web component
+├── video-overlay-webcomponent.js       # MediaPipe video overlay web component
+├── video-overlay-webcomponent-bodypix.js # BodyPix video overlay web component
+├── renderer.js                          # Background WebGL renderer
+├── video-overlay-renderer.js           # MediaPipe video overlay renderer
+├── video-overlay-renderer-bodypix.js   # BodyPix video overlay renderer
 └── shaders/
-    ├── vertex.glsl             # Background vertex shader
-    ├── fragment.glsl           # Background fragment shader
-    ├── fisheye-vertex.glsl     # Fisheye vertex shader
-    └── fisheye-fragment.glsl   # Fisheye fragment shader
+    ├── vertex.glsl                     # Background vertex shader
+    ├── fragment.glsl                   # Background fragment shader
+    ├── fisheye-vertex.glsl             # Fisheye vertex shader
+    └── fisheye-fragment.glsl           # Fisheye fragment shader
 ```
 
 ## 🌐 Browser Support

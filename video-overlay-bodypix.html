@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Max Headroom Video Overlay Demo</title>
+  <title>Max Headroom Video Overlay Demo - BodyPix (Legacy)</title>
   <style>
     body {
       margin: 0;
@@ -25,8 +25,8 @@
       height: 100%;
       z-index: 1;
     }
-    
-    max-headroom-video-overlay {
+    p
+    max-headroom-video-overlay-bodypix {
       position: absolute;
       top: 0;
       left: 0;
@@ -104,11 +104,11 @@
       line-spacing="60.0">
     </max-headroom-bg>
     
-    <!-- Video overlay component -->
-    <max-headroom-video-overlay 
+    <!-- BodyPix Video overlay component -->
+    <max-headroom-video-overlay-bodypix 
       id="videoOverlay"
       glitch-frequency="3">
-    </max-headroom-video-overlay>
+    </max-headroom-video-overlay-bodypix>
     
     <div id="status-container">
       <div id="status">Loading...</div>
@@ -123,7 +123,7 @@
 
   <!-- Load components -->
   <script type="module" src="src/webcomponent.js"></script>
-  <script type="module" src="src/video-overlay-webcomponent.js"></script>
+  <script type="module" src="src/video-overlay-webcomponent-bodypix.js"></script>
 
   <script>
     const status = document.getElementById('status');
@@ -159,5 +159,4 @@
     });
   </script>
 </body>
-</html>
-
+</html> 
