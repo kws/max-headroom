@@ -1,7 +1,7 @@
 {
   "name": "webgl-max-headroom",
   "version": "1.0.0",
-  "description": "WebGL-powered Max Headroom style background and video overlay web components",
+  "description": "WebGL-powered Max Headroom style background and video overlay web components with AI-driven person segmentation, retro cyberpunk effects, and real-time shader animations",
   "type": "module",
   "main": "dist/max-headroom.js",
   "scripts": {
@@ -14,7 +14,7 @@
     "preview": "vite preview",
     "serve": "vite preview"
   },
-  "keywords": ["webgl", "max-headroom", "web-component", "video-overlay", "tensorflow", "80s"],
+  "keywords": ["webgl", "max-headroom", "web-components", "video-overlay", "tensorflow", "80s", "cyberpunk", "retro", "glitch", "ai", "machine-learning", "body-pix", "segmentation", "shaders", "canvas", "vite", "camera", "real-time"],
   "author": "Kaj Wik Siebert",
   "license": "MIT",
   "repository": {
